@@ -335,7 +335,10 @@ from kafka import KafkaProducer, KafkaConsumer
 from kafka.partitioner import Murmur2Partitioner
 import json
 import time
+import random
 from concurrent.futures import ThreadPoolExecutor
+import threading
+from typing import Dict, List, Any
 
 class StreamAggregator:
     def __init__(self, bootstrap_servers):
@@ -349,6 +352,7 @@ class StreamAggregator:
             retries=3,
             max_in_flight_requests_per_connection=1
         )
+        self._running = False
 
     def stream_social_media(self, platform, num_messages=100):
         """Simulate streaming from multiple social platforms"""
@@ -382,6 +386,12 @@ class StreamAggregator:
             self.producer.send('iot-stream', key=reading['device_id'], value=reading)
             time.sleep(0.005)
 
+    def stop(self):
+        """Stop the producer"""
+        self.producer.flush()
+        self.producer.close()
+        self._running = False
+
 # Consumer with real-time processing
 class StreamProcessor:
     def __init__(self, bootstrap_servers, topics):
@@ -395,46 +405,153 @@ class StreamProcessor:
             value_deserializer=lambda m: json.loads(m.decode('utf-8'))
         )
         self.batch = []
+        self._running = False
 
     def process_stream(self):
         """Process stream with windowing and aggregation"""
         window_data = {'social': [], 'iot': []}
         window_start = time.time()
+        self._running = True
 
-        for message in self.consumer:
-            # Window-based processing (5 second windows)
-            if time.time() - window_start > 5:
-                self.aggregate_and_forward(window_data)
-                window_data = {'social': [], 'iot': []}
-                window_start = time.time()
+        try:
+            for message in self.consumer:
+                if not self._running:
+                    break
 
-            if message.topic == 'social-stream':
-                window_data['social'].append(message.value)
-            elif message.topic == 'iot-stream':
-                window_data['iot'].append(message.value)
+                # Window-based processing (5 second windows)
+                if time.time() - window_start > 5:
+                    self.aggregate_and_forward(window_data)
+                    window_data = {'social': [], 'iot': []}
+                    window_start = time.time()
 
-            self.batch.append(message)
-            if len(self.batch) >= 100:
-                self.consumer.commit()
-                self.batch = []
+                if message.topic == 'social-stream':
+                    window_data['social'].append(message.value)
+                elif message.topic == 'iot-stream':
+                    window_data['iot'].append(message.value)
+
+                self.batch.append(message)
+                if len(self.batch) >= 100:
+                    self.consumer.commit()
+                    self.batch = []
+        except Exception as e:
+            print(f"Error in process_stream: {e}")
+        finally:
+            self.consumer.close()
 
     def aggregate_and_forward(self, window_data):
         """Aggregate window data and forward to Spark/analytics"""
         if window_data['social']:
             avg_sentiment = sum(d['sentiment_score'] for d in window_data['social']) / len(window_data['social'])
-            print(f"Window: {len(window_data['social'])} social events, Avg Sentiment: {avg_sentiment:.2f}")
+            total_events = len(window_data['social'])
+            avg_likes = sum(d['engagement']['likes'] for d in window_data['social']) / total_events
+            print(f"Window: {total_events} social events, Avg Sentiment: {avg_sentiment:.2f}, Avg Likes: {avg_likes:.1f}")
 
         if window_data['iot']:
             avg_reading = sum(d['reading'] for d in window_data['iot']) / len(window_data['iot'])
-            print(f"Window: {len(window_data['iot'])} IoT readings, Avg Reading: {avg_reading:.2f}")
+            avg_battery = sum(d['battery_level'] for d in window_data['iot']) / len(window_data['iot'])
+            print(f"Window: {len(window_data['iot'])} IoT readings, Avg Reading: {avg_reading:.2f}, Avg Battery: {avg_battery:.2f}")
 
-# Run with thread pool
-aggregator = StreamAggregator(['localhost:9092'])
-with ThreadPoolExecutor(max_workers=4) as executor:
-    executor.submit(aggregator.stream_social_media, 'twitter', 1000)
-    executor.submit(aggregator.stream_social_media, 'facebook', 1000)
-    executor.submit(aggregator.stream_iot_sensors, 'temperature', 1000)
-    executor.submit(aggregator.stream_iot_sensors, 'pressure', 1000)
+    def stop(self):
+        """Stop the consumer"""
+        self._running = False
+        self.consumer.close()
+
+# Enhanced multi-threaded processing with error handling
+class EnhancedStreamProcessor(StreamProcessor):
+    def __init__(self, bootstrap_servers, topics, worker_threads=4):
+        super().__init__(bootstrap_servers, topics)
+        self.worker_threads = worker_threads
+        self.processing_queue = []
+        self.lock = threading.Lock()
+
+    def process_stream_with_threads(self):
+        """Process stream using thread pool for better performance"""
+        window_data = {'social': [], 'iot': []}
+        window_start = time.time()
+        self._running = True
+
+        with ThreadPoolExecutor(max_workers=self.worker_threads) as executor:
+            try:
+                for message in self.consumer:
+                    if not self._running:
+                        break
+
+                    # Submit message processing to thread pool
+                    if message.topic == 'social-stream':
+                        future = executor.submit(self.process_social_message, message.value)
+                    elif message.topic == 'iot-stream':
+                        future = executor.submit(self.process_iot_message, message.value)
+
+                    # Window-based processing (5 second windows)
+                    if time.time() - window_start > 5:
+                        self.aggregate_and_forward(window_data)
+                        window_data = {'social': [], 'iot': []}
+                        window_start = time.time()
+
+                    self.batch.append(message)
+                    if len(self.batch) >= 100:
+                        self.consumer.commit()
+                        self.batch = []
+            except Exception as e:
+                print(f"Error in enhanced process_stream: {e}")
+            finally:
+                self.consumer.close()
+
+    def process_social_message(self, message):
+        """Process individual social media message"""
+        # Add your custom processing logic here
+        # This could include NLP, sentiment analysis, etc.
+        return message
+
+    def process_iot_message(self, message):
+        """Process individual IoT sensor message"""
+        # Add your custom processing logic here
+        # This could include anomaly detection, filtering, etc.
+        return message
+
+# Main execution with proper cleanup
+def main():
+    bootstrap_servers = ['localhost:9092']
+
+    # Create aggregator and processor
+    aggregator = StreamAggregator(bootstrap_servers)
+    processor = StreamProcessor(bootstrap_servers, ['social-stream', 'iot-stream'])
+
+    try:
+        # Start streaming in parallel
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = [
+                executor.submit(aggregator.stream_social_media, 'twitter', 1000),
+                executor.submit(aggregator.stream_social_media, 'facebook', 1000),
+                executor.submit(aggregator.stream_iot_sensors, 'temperature', 1000),
+                executor.submit(aggregator.stream_iot_sensors, 'pressure', 1000)
+            ]
+
+            # Start processing in a separate thread
+            processing_thread = threading.Thread(target=processor.process_stream)
+            processing_thread.start()
+
+            # Wait for all streaming tasks to complete
+            for future in futures:
+                future.result()
+
+            # Give processing time to finish
+            time.sleep(2)
+            processor.stop()
+            processing_thread.join()
+
+    except KeyboardInterrupt:
+        print("Received interrupt signal, stopping...")
+    except Exception as e:
+        print(f"Error in main execution: {e}")
+    finally:
+        aggregator.stop()
+        processor.stop()
+        print("All components stopped gracefully")
+
+if __name__ == "__main__":
+    main()
+
 ```
 
 ### 2. Log Aggregation
