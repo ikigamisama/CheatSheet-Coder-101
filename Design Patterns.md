@@ -1,1591 +1,1103 @@
-# Design Patterns for Data Engineering & Data Science
+# Design Patterns Cheat Sheet for Data Analytics, Engineering & Science
 
-## 1. Factory Pattern
+## I. CREATIONAL DESIGN PATTERNS
 
-**Definition**: Creates objects without specifying their exact class, allowing runtime decisions about which class to instantiate.
+_Patterns that deal with object creation mechanisms_
 
-**Purpose**: Provides flexibility in object creation, especially useful when dealing with different data sources or processing engines.
+### 1. Singleton
 
-### Example 1: Data Source Factory
+**Purpose:** Ensures a class has only one instance and provides a global point of access to it.
 
-```python
-from abc import ABC, abstractmethod
-import pandas as pd
-import sqlite3
-import json
+**When to Use:** Database connections, configuration managers, logging systems.
 
-class DataSource(ABC):
-    @abstractmethod
-    def read_data(self, source: str) -> pd.DataFrame:
-        pass
+**Data Context:** Use when you need a single shared resource across your data pipeline.
 
-class CSVDataSource(DataSource):
-    def read_data(self, source: str) -> pd.DataFrame:
-        return pd.read_csv(source)
-
-class SQLDataSource(DataSource):
-    def read_data(self, source: str) -> pd.DataFrame:
-        conn = sqlite3.connect(source)
-        return pd.read_sql_query("SELECT * FROM table", conn)
-
-class ParquetDataSource(DataSource):
-    def read_data(self, source: str) -> pd.DataFrame:
-        return pd.read_parquet(source)
-
-class JSONDataSource(DataSource):
-    def read_data(self, source: str) -> pd.DataFrame:
-        return pd.read_json(source)
-
-class DataSourceFactory:
-    @staticmethod
-    def create_datasource(file_type: str) -> DataSource:
-        sources = {
-            'csv': CSVDataSource,
-            'sql': SQLDataSource,
-            'parquet': ParquetDataSource,
-            'json': JSONDataSource
-        }
-        if file_type.lower() in sources:
-            return sources[file_type.lower()]()
-        raise ValueError(f"Unsupported file type: {file_type}")
-
-# Usage
-factory = DataSourceFactory()
-csv_reader = factory.create_datasource('csv')
-data = csv_reader.read_data('sales_data.csv')
-```
-
-### Example 2: ML Model Factory
+**Examples:**
 
 ```python
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.svm import SVC
-from sklearn.naive_bayes import GaussianNB
-
-class ModelFactory:
-    @staticmethod
-    def create_model(model_type: str, **kwargs):
-        models = {
-            'rf': RandomForestClassifier,
-            'gb': GradientBoostingClassifier,
-            'lr': LogisticRegression,
-            'svm': SVC,
-            'nb': GaussianNB
-        }
-        if model_type.lower() in models:
-            return models[model_type.lower()](**kwargs)
-        raise ValueError(f"Unsupported model type: {model_type}")
-
-# Usage
-model_factory = ModelFactory()
-rf_model = model_factory.create_model('rf', n_estimators=100)
-gb_model = model_factory.create_model('gb', learning_rate=0.1)
-```
-
-### Example 3: Database Connection Factory
-
-```python
-import sqlite3
-import psycopg2
-from pymongo import MongoClient
-
-class DatabaseFactory:
-    @staticmethod
-    def create_connection(db_type: str, **kwargs):
-        if db_type.lower() == 'sqlite':
-            return sqlite3.connect(kwargs.get('database', 'default.db'))
-        elif db_type.lower() == 'postgresql':
-            return psycopg2.connect(
-                host=kwargs.get('host', 'localhost'),
-                database=kwargs.get('database'),
-                user=kwargs.get('user'),
-                password=kwargs.get('password')
-            )
-        elif db_type.lower() == 'mongodb':
-            return MongoClient(kwargs.get('uri', 'mongodb://localhost:27017/'))
-        else:
-            raise ValueError(f"Unsupported database type: {db_type}")
-
-# Usage
-sqlite_conn = DatabaseFactory.create_connection('sqlite', database='data.db')
-postgres_conn = DatabaseFactory.create_connection('postgresql',
-                                                  host='localhost',
-                                                  database='analytics',
-                                                  user='user',
-                                                  password='pass')
-```
-
-### Example 4: Data Transformer Factory
-
-```python
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
-from sklearn.decomposition import PCA
-from sklearn.feature_selection import SelectKBest
-
-class TransformerFactory:
-    @staticmethod
-    def create_transformer(transformer_type: str, **kwargs):
-        transformers = {
-            'standard': StandardScaler,
-            'minmax': MinMaxScaler,
-            'robust': RobustScaler,
-            'pca': PCA,
-            'kbest': SelectKBest
-        }
-        if transformer_type.lower() in transformers:
-            return transformers[transformer_type.lower()](**kwargs)
-        raise ValueError(f"Unsupported transformer type: {transformer_type}")
-
-# Usage
-scaler = TransformerFactory.create_transformer('standard')
-pca = TransformerFactory.create_transformer('pca', n_components=2)
-```
-
-### Example 5: Visualization Factory
-
-```python
-import matplotlib.pyplot as plt
-import seaborn as sns
-import plotly.express as px
-
-class VisualizationFactory:
-    @staticmethod
-    def create_plot(plot_type: str, data, x, y=None, **kwargs):
-        if plot_type.lower() == 'scatter':
-            return plt.scatter(data[x], data[y], **kwargs)
-        elif plot_type.lower() == 'histogram':
-            return plt.hist(data[x], **kwargs)
-        elif plot_type.lower() == 'boxplot':
-            return sns.boxplot(data=data, x=x, y=y, **kwargs)
-        elif plot_type.lower() == 'interactive_scatter':
-            return px.scatter(data, x=x, y=y, **kwargs)
-        else:
-            raise ValueError(f"Unsupported plot type: {plot_type}")
-
-# Usage
-import pandas as pd
-df = pd.DataFrame({'x': [1, 2, 3], 'y': [4, 5, 6]})
-plot = VisualizationFactory.create_plot('scatter', df, 'x', 'y')
-```
-
-### Example 6: Data Validator Factory
-
-```python
-from abc import ABC, abstractmethod
-import pandas as pd
-
-class DataValidator(ABC):
-    @abstractmethod
-    def validate(self, data: pd.DataFrame) -> bool:
-        pass
-
-class NullValidator(DataValidator):
-    def validate(self, data: pd.DataFrame) -> bool:
-        return not data.isnull().any().any()
-
-class DuplicateValidator(DataValidator):
-    def validate(self, data: pd.DataFrame) -> bool:
-        return not data.duplicated().any()
-
-class SchemaValidator(DataValidator):
-    def __init__(self, expected_columns):
-        self.expected_columns = expected_columns
-
-    def validate(self, data: pd.DataFrame) -> bool:
-        return set(data.columns) == set(self.expected_columns)
-
-class ValidatorFactory:
-    @staticmethod
-    def create_validator(validator_type: str, **kwargs):
-        validators = {
-            'null': NullValidator,
-            'duplicate': DuplicateValidator,
-            'schema': lambda: SchemaValidator(kwargs.get('columns', []))
-        }
-        if validator_type.lower() in validators:
-            return validators[validator_type.lower()]()
-        raise ValueError(f"Unsupported validator type: {validator_type}")
-
-# Usage
-null_validator = ValidatorFactory.create_validator('null')
-schema_validator = ValidatorFactory.create_validator('schema', columns=['A', 'B', 'C'])
-```
-
-### Example 7: Feature Engineering Factory
-
-```python
-from sklearn.preprocessing import PolynomialFeatures, OneHotEncoder
-from sklearn.feature_extraction.text import TfidfVectorizer
-
-class FeatureEngineerFactory:
-    @staticmethod
-    def create_feature_engineer(engineer_type: str, **kwargs):
-        engineers = {
-            'polynomial': PolynomialFeatures,
-            'onehot': OneHotEncoder,
-            'tfidf': TfidfVectorizer
-        }
-        if engineer_type.lower() in engineers:
-            return engineers[engineer_type.lower()](**kwargs)
-        raise ValueError(f"Unsupported feature engineer type: {engineer_type}")
-
-# Usage
-poly_features = FeatureEngineerFactory.create_feature_engineer('polynomial', degree=2)
-onehot_encoder = FeatureEngineerFactory.create_feature_engineer('onehot')
-```
-
----
-
-## 2. Singleton Pattern
-
-**Definition**: Ensures a class has only one instance and provides global access to it.
-
-**Purpose**: Useful for shared resources like database connections, configuration settings, or logging systems.
-
-### Example 1: Database Connection Manager
-
-```python
-import sqlite3
-from threading import Lock
-
-class DatabaseManager:
+# Example 1: Database Connection Manager
+class DatabaseConnection:
     _instance = None
-    _lock = Lock()
-
-    def __new__(cls):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-                    cls._instance._connection = None
-        return cls._instance
-
-    def get_connection(self):
-        if self._connection is None:
-            self._connection = sqlite3.connect('data_warehouse.db')
-        return self._connection
-
-    def execute_query(self, query: str):
-        conn = self.get_connection()
-        return conn.execute(query).fetchall()
-
-# Usage
-db1 = DatabaseManager()
-db2 = DatabaseManager()
-print(db1 is db2)  # True
-```
-
-### Example 2: Configuration Manager
-
-```python
-import json
-from typing import Dict, Any
-
-class ConfigManager:
-    _instance = None
-    _config = None
 
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
+            cls._instance.connection = cls._create_connection()
         return cls._instance
 
-    def load_config(self, config_file: str):
-        if self._config is None:
-            with open(config_file, 'r') as f:
-                self._config = json.load(f)
-
-    def get_config(self, key: str, default=None):
-        return self._config.get(key, default) if self._config else default
+    @staticmethod
+    def _create_connection():
+        # Establish database connection
+        return "Connected to PostgreSQL"
 
 # Usage
-config = ConfigManager()
-config.load_config('pipeline_config.json')
-batch_size = config.get_config('batch_size', 1000)
+db1 = DatabaseConnection()
+db2 = DatabaseConnection()
+# db1 and db2 are the same instance
 ```
 
-### Example 3: Logger Manager
-
 ```python
-import logging
-from threading import Lock
-
-class LoggerManager:
+# Example 2: Configuration Manager for ML Pipeline
+class MLConfig:
     _instance = None
-    _lock = Lock()
-    _logger = None
 
     def __new__(cls):
         if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-                    cls._instance._setup_logger()
+            cls._instance = super().__new__(cls)
+            cls._instance.config = {
+                'model_path': '/models/',
+                'batch_size': 32,
+                'learning_rate': 0.001
+            }
         return cls._instance
 
-    def _setup_logger(self):
-        self._logger = logging.getLogger('DataPipeline')
-        self._logger.setLevel(logging.INFO)
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        self._logger.addHandler(handler)
-
-    def get_logger(self):
-        return self._logger
-
-# Usage
-logger_manager = LoggerManager()
-logger = logger_manager.get_logger()
-logger.info("Processing data batch")
+config = MLConfig()
 ```
 
-### Example 4: Cache Manager
-
 ```python
-import pickle
-import os
-from threading import Lock
-
-class CacheManager:
+# Example 3: Logger for Data Pipeline
+class PipelineLogger:
     _instance = None
-    _lock = Lock()
-    _cache = {}
 
     def __new__(cls):
         if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
+            cls._instance = super().__new__(cls)
+            cls._instance.logs = []
         return cls._instance
 
-    def get(self, key: str):
-        return self._cache.get(key)
+    def log(self, message):
+        self.logs.append(message)
 
-    def set(self, key: str, value):
-        self._cache[key] = value
-
-    def save_to_disk(self, filepath: str):
-        with open(filepath, 'wb') as f:
-            pickle.dump(self._cache, f)
-
-    def load_from_disk(self, filepath: str):
-        if os.path.exists(filepath):
-            with open(filepath, 'rb') as f:
-                self._cache = pickle.load(f)
-
-# Usage
-cache = CacheManager()
-cache.set('processed_data', {'results': [1, 2, 3]})
-data = cache.get('processed_data')
-```
-
-### Example 5: Model Registry
-
-```python
-import joblib
-from threading import Lock
-
-class ModelRegistry:
-    _instance = None
-    _lock = Lock()
-    _models = {}
-
-    def __new__(cls):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-        return cls._instance
-
-    def register_model(self, name: str, model):
-        self._models[name] = model
-
-    def get_model(self, name: str):
-        return self._models.get(name)
-
-    def list_models(self):
-        return list(self._models.keys())
-
-    def save_model(self, name: str, filepath: str):
-        if name in self._models:
-            joblib.dump(self._models[name], filepath)
-
-# Usage
-registry = ModelRegistry()
-registry.register_model('rf_classifier', RandomForestClassifier())
-model = registry.get_model('rf_classifier')
-```
-
-### Example 6: Resource Pool Manager
-
-```python
-import queue
-from threading import Lock
-
-class ResourcePoolManager:
-    _instance = None
-    _lock = Lock()
-
-    def __new__(cls):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-                    cls._instance._connections = queue.Queue()
-                    cls._instance._max_connections = 10
-        return cls._instance
-
-    def get_connection(self):
-        if not self._connections.empty():
-            return self._connections.get()
-        else:
-            # Create new connection if pool not full
-            return self._create_connection()
-
-    def return_connection(self, connection):
-        self._connections.put(connection)
-
-    def _create_connection(self):
-        # Simulate creating a database connection
-        return f"Connection_{id(self)}"
-
-# Usage
-pool = ResourcePoolManager()
-conn = pool.get_connection()
-# Use connection
-pool.return_connection(conn)
-```
-
-### Example 7: Metrics Collector
-
-```python
-import time
-from collections import defaultdict
-from threading import Lock
-
-class MetricsCollector:
-    _instance = None
-    _lock = Lock()
-    _metrics = defaultdict(list)
-
-    def __new__(cls):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-        return cls._instance
-
-    def record_metric(self, name: str, value: float):
-        self._metrics[name].append({
-            'value': value,
-            'timestamp': time.time()
-        })
-
-    def get_metric_stats(self, name: str):
-        values = [m['value'] for m in self._metrics[name]]
-        if not values:
-            return None
-        return {
-            'count': len(values),
-            'avg': sum(values) / len(values),
-            'min': min(values),
-            'max': max(values)
-        }
-
-# Usage
-metrics = MetricsCollector()
-metrics.record_metric('processing_time', 2.5)
-metrics.record_metric('accuracy', 0.95)
-stats = metrics.get_metric_stats('processing_time')
+logger = PipelineLogger()
+logger.log("ETL started")
 ```
 
 ---
 
-## 3. Decorator Pattern
+### 2. Factory Method
 
-**Definition**: Dynamically adds new functionality to objects without altering their structure.
+**Purpose:** Defines an interface for creating objects, but lets subclasses decide which class to instantiate.
 
-**Purpose**: Enhances data processing functions with additional features like logging, validation, or caching.
+**When to Use:** When you need to create different types of data processors, connectors, or models based on conditions.
 
-### Example 1: Execution Time Logger
+**Data Context:** Creating different data readers (CSV, JSON, Parquet) or model types dynamically.
 
-```python
-import time
-import logging
-from functools import wraps
-
-def log_execution_time(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        start_time = time.time()
-        result = func(*args, **kwargs)
-        end_time = time.time()
-        logging.info(f"{func.__name__} executed in {end_time - start_time:.2f} seconds")
-        return result
-    return wrapper
-
-@log_execution_time
-def process_large_dataset(data):
-    # Simulate processing
-    time.sleep(1)
-    return data.sum()
-
-# Usage
-import pandas as pd
-df = pd.DataFrame({'A': range(1000)})
-result = process_large_dataset(df)
-```
-
-### Example 2: Data Validation Decorator
+**Examples:**
 
 ```python
-from functools import wraps
-import pandas as pd
+# Example 1: Data Reader Factory
+class DataReader:
+    def read(self, filepath):
+        pass
 
-def validate_dataframe(func):
-    @wraps(func)
-    def wrapper(df, *args, **kwargs):
-        if not isinstance(df, pd.DataFrame):
-            raise TypeError("Input must be a pandas DataFrame")
-        if df.empty:
-            raise ValueError("DataFrame is empty")
-        if df.isnull().any().any():
-            logging.warning("DataFrame contains null values")
-        return func(df, *args, **kwargs)
-    return wrapper
+class CSVReader(DataReader):
+    def read(self, filepath):
+        return f"Reading CSV from {filepath}"
 
-@validate_dataframe
-def clean_data(df):
-    return df.drop_duplicates().fillna(0)
+class JSONReader(DataReader):
+    def read(self, filepath):
+        return f"Reading JSON from {filepath}"
 
-# Usage
-df = pd.DataFrame({'A': [1, 2, None, 4], 'B': [5, 6, 7, 8]})
-cleaned = clean_data(df)
-```
+class ParquetReader(DataReader):
+    def read(self, filepath):
+        return f"Reading Parquet from {filepath}"
 
-### Example 3: Result Caching Decorator
-
-```python
-from functools import wraps
-import pickle
-import os
-import hashlib
-
-def cache_results(cache_dir='cache'):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            # Create cache key
-            cache_key = hashlib.md5(str(args).encode() + str(kwargs).encode()).hexdigest()
-            cache_file = os.path.join(cache_dir, f"{func.__name__}_{cache_key}.pkl")
-
-            if os.path.exists(cache_file):
-                with open(cache_file, 'rb') as f:
-                    return pickle.load(f)
-
-            result = func(*args, **kwargs)
-
-            os.makedirs(cache_dir, exist_ok=True)
-            with open(cache_file, 'wb') as f:
-                pickle.dump(result, f)
-
-            return result
-        return wrapper
-    return decorator
-
-@cache_results()
-def expensive_computation(data):
-    import time
-    time.sleep(2)
-    return data.describe()
-
-# Usage
-df = pd.DataFrame({'A': range(100), 'B': range(100, 200)})
-result = expensive_computation(df)  # Cached after first call
-```
-
-### Example 4: Error Handling Decorator
-
-```python
-from functools import wraps
-import logging
-
-def handle_errors(default_return=None):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                logging.error(f"Error in {func.__name__}: {str(e)}")
-                return default_return
-        return wrapper
-    return decorator
-
-@handle_errors(default_return=pd.DataFrame())
-def risky_data_operation(df):
-    # This might fail
-    return df.divide_by_zero()
-
-# Usage
-df = pd.DataFrame({'A': [1, 2, 3]})
-result = risky_data_operation(df)  # Returns empty DataFrame on error
-```
-
-### Example 5: Performance Monitoring Decorator
-
-```python
-import psutil
-import time
-from functools import wraps
-
-def monitor_performance(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        # Monitor before execution
-        start_time = time.time()
-        start_memory = psutil.Process().memory_info().rss / 1024 / 1024  # MB
-
-        result = func(*args, **kwargs)
-
-        # Monitor after execution
-        end_time = time.time()
-        end_memory = psutil.Process().memory_info().rss / 1024 / 1024  # MB
-
-        print(f"{func.__name__} Performance:")
-        print(f"  Time: {end_time - start_time:.2f} seconds")
-        print(f"  Memory usage: {end_memory - start_memory:.2f} MB")
-
-        return result
-    return wrapper
-
-@monitor_performance
-def memory_intensive_operation(size):
-    import numpy as np
-    data = np.random.randn(size, size)
-    return data.sum()
-
-# Usage
-result = memory_intensive_operation(1000)
-```
-
-### Example 6: Retry Decorator
-
-```python
-import time
-from functools import wraps
-
-def retry(max_attempts=3, delay=1):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            for attempt in range(max_attempts):
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    if attempt == max_attempts - 1:
-                        raise e
-                    print(f"Attempt {attempt + 1} failed: {e}. Retrying...")
-                    time.sleep(delay)
-        return wrapper
-    return decorator
-
-@retry(max_attempts=3, delay=2)
-def unreliable_api_call():
-    import random
-    if random.random() < 0.7:  # 70% chance of failure
-        raise Exception("API call failed")
-    return {"data": "success"}
-
-# Usage
-result = unreliable_api_call()
-```
-
-### Example 7: Input/Output Logging Decorator
-
-```python
-from functools import wraps
-import json
-
-def log_inputs_outputs(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        # Log inputs
-        print(f"Calling {func.__name__} with:")
-        print(f"  Args: {args}")
-        print(f"  Kwargs: {kwargs}")
-
-        result = func(*args, **kwargs)
-
-        # Log outputs
-        print(f"  Result: {result}")
-
-        return result
-    return wrapper
-
-@log_inputs_outputs
-def calculate_statistics(data, percentiles=[25, 50, 75]):
-    return {
-        'mean': data.mean(),
-        'std': data.std(),
-        'percentiles': data.quantile([p/100 for p in percentiles])
+def data_reader_factory(file_type):
+    readers = {
+        'csv': CSVReader(),
+        'json': JSONReader(),
+        'parquet': ParquetReader()
     }
+    return readers.get(file_type)
 
 # Usage
-import pandas as pd
-df = pd.Series([1, 2, 3, 4, 5])
-stats = calculate_statistics(df)
+reader = data_reader_factory('csv')
+data = reader.read('sales.csv')
 ```
 
-### Example 8: Data Type Conversion Decorator
+```python
+# Example 2: Model Factory for Different Algorithms
+class Model:
+    def train(self, data):
+        pass
+
+class LinearRegressionModel(Model):
+    def train(self, data):
+        return "Training Linear Regression"
+
+class RandomForestModel(Model):
+    def train(self, data):
+        return "Training Random Forest"
+
+def model_factory(model_type):
+    models = {
+        'linear': LinearRegressionModel(),
+        'rf': RandomForestModel()
+    }
+    return models.get(model_type)
+```
 
 ```python
-from functools import wraps
-import pandas as pd
+# Example 3: Database Connector Factory
+class DBConnector:
+    def connect(self):
+        pass
 
-def ensure_dataframe(func):
-    @wraps(func)
-    def wrapper(data, *args, **kwargs):
-        if not isinstance(data, pd.DataFrame):
-            if isinstance(data, dict):
-                data = pd.DataFrame(data)
-            elif isinstance(data, list):
-                data = pd.DataFrame(data)
-            else:
-                raise TypeError("Data must be convertible to DataFrame")
-        return func(data, *args, **kwargs)
-    return wrapper
+class PostgreSQLConnector(DBConnector):
+    def connect(self):
+        return "Connected to PostgreSQL"
 
-@ensure_dataframe
-def analyze_data(df):
-    return df.describe()
+class MongoDBConnector(DBConnector):
+    def connect(self):
+        return "Connected to MongoDB"
 
-# Usage
-# Works with different input types
-dict_data = {'A': [1, 2, 3], 'B': [4, 5, 6]}
-result = analyze_data(dict_data)
+def db_connector_factory(db_type):
+    connectors = {
+        'postgres': PostgreSQLConnector(),
+        'mongo': MongoDBConnector()
+    }
+    return connectors.get(db_type)
 ```
 
 ---
 
-## 4. Strategy Pattern
+### 3. Abstract Factory
 
-**Definition**: Defines a family of algorithms, encapsulates each one, and makes them interchangeable.
+**Purpose:** Provides an interface for creating families of related objects without specifying their concrete classes.
 
-**Purpose**: Allows switching between different algorithms or processing methods at runtime.
+**When to Use:** When you need to create multiple related objects that work together (e.g., cloud provider services).
 
-### Example 1: Data Scaling Strategies
+**Data Context:** Creating complete data pipeline components for different cloud environments.
+
+**Examples:**
 
 ```python
-from abc import ABC, abstractmethod
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
-import pandas as pd
-
-class ScalingStrategy(ABC):
-    @abstractmethod
-    def scale(self, data: pd.DataFrame) -> pd.DataFrame:
+# Example 1: Cloud Data Platform Factory
+class DataWarehouse:
+    def query(self, sql):
         pass
 
-class StandardScalingStrategy(ScalingStrategy):
-    def scale(self, data: pd.DataFrame) -> pd.DataFrame:
-        scaler = StandardScaler()
-        scaled_data = scaler.fit_transform(data)
-        return pd.DataFrame(scaled_data, columns=data.columns)
+class StorageService:
+    def upload(self, data):
+        pass
 
-class MinMaxScalingStrategy(ScalingStrategy):
-    def scale(self, data: pd.DataFrame) -> pd.DataFrame:
-        scaler = MinMaxScaler()
-        scaled_data = scaler.fit_transform(data)
-        return pd.DataFrame(scaled_data, columns=data.columns)
+class AWSWarehouse(DataWarehouse):
+    def query(self, sql):
+        return f"Querying Redshift: {sql}"
 
-class RobustScalingStrategy(ScalingStrategy):
-    def scale(self, data: pd.DataFrame) -> pd.DataFrame:
-        scaler = RobustScaler()
-        scaled_data = scaler.fit_transform(data)
-        return pd.DataFrame(scaled_data, columns=data.columns)
+class AWSStorage(StorageService):
+    def upload(self, data):
+        return f"Uploading to S3: {data}"
 
-class DataScaler:
-    def __init__(self, strategy: ScalingStrategy):
-        self.strategy = strategy
+class GCPWarehouse(DataWarehouse):
+    def query(self, sql):
+        return f"Querying BigQuery: {sql}"
 
-    def set_strategy(self, strategy: ScalingStrategy):
-        self.strategy = strategy
+class GCPStorage(StorageService):
+    def upload(self, data):
+        return f"Uploading to GCS: {data}"
 
-    def scale_data(self, data: pd.DataFrame) -> pd.DataFrame:
-        return self.strategy.scale(data)
+class CloudFactory:
+    def create_warehouse(self):
+        pass
+    def create_storage(self):
+        pass
+
+class AWSFactory(CloudFactory):
+    def create_warehouse(self):
+        return AWSWarehouse()
+    def create_storage(self):
+        return AWSStorage()
+
+class GCPFactory(CloudFactory):
+    def create_warehouse(self):
+        return GCPWarehouse()
+    def create_storage(self):
+        return GCPStorage()
 
 # Usage
-df = pd.DataFrame({'A': [1, 2, 3, 4, 5], 'B': [10, 20, 30, 40, 50]})
-scaler = DataScaler(StandardScalingStrategy())
-scaled_data = scaler.scale_data(df)
+factory = AWSFactory()
+warehouse = factory.create_warehouse()
+storage = factory.create_storage()
 ```
 
-### Example 2: Feature Selection Strategies
-
 ```python
-from sklearn.feature_selection import SelectKBest, f_classif, RFE
-from sklearn.ensemble import RandomForestClassifier
-
-class FeatureSelectionStrategy(ABC):
-    @abstractmethod
-    def select_features(self, X, y):
+# Example 2: ML Framework Factory
+class Trainer:
+    def fit(self, model, data):
         pass
 
-class KBestStrategy(FeatureSelectionStrategy):
-    def __init__(self, k=5):
-        self.k = k
+class Predictor:
+    def predict(self, model, data):
+        pass
 
-    def select_features(self, X, y):
-        selector = SelectKBest(score_func=f_classif, k=self.k)
-        X_selected = selector.fit_transform(X, y)
-        return X_selected, selector.get_support()
+class TensorFlowTrainer(Trainer):
+    def fit(self, model, data):
+        return "Training with TensorFlow"
 
-class RFEStrategy(FeatureSelectionStrategy):
-    def __init__(self, n_features=5):
-        self.n_features = n_features
+class TensorFlowPredictor(Predictor):
+    def predict(self, model, data):
+        return "Predicting with TensorFlow"
 
-    def select_features(self, X, y):
-        estimator = RandomForestClassifier()
-        selector = RFE(estimator, n_features_to_select=self.n_features)
-        X_selected = selector.fit_transform(X, y)
-        return X_selected, selector.support_
+class PyTorchTrainer(Trainer):
+    def fit(self, model, data):
+        return "Training with PyTorch"
 
-class ImportanceBasedStrategy(FeatureSelectionStrategy):
-    def __init__(self, threshold=0.1):
-        self.threshold = threshold
+class PyTorchPredictor(Predictor):
+    def predict(self, model, data):
+        return "Predicting with PyTorch"
 
-    def select_features(self, X, y):
-        rf = RandomForestClassifier()
-        rf.fit(X, y)
-        importances = rf.feature_importances_
-        mask = importances > self.threshold
-        return X[:, mask], mask
+class MLFrameworkFactory:
+    def create_trainer(self):
+        pass
+    def create_predictor(self):
+        pass
 
-# Usage
-from sklearn.datasets import make_classification
-X, y = make_classification(n_samples=100, n_features=10, n_informative=5)
-
-selector = FeatureSelector(KBestStrategy(k=3))
-X_selected, feature_mask = selector.select(X, y)
+class TensorFlowFactory(MLFrameworkFactory):
+    def create_trainer(self):
+        return TensorFlowTrainer()
+    def create_predictor(self):
+        return TensorFlowPredictor()
 ```
 
-### Example 3: Missing Value Handling Strategies
-
 ```python
-from sklearn.impute import SimpleImputer, KNNImputer
-import pandas as pd
-
-class MissingValueStrategy(ABC):
-    @abstractmethod
-    def handle_missing(self, data: pd.DataFrame) -> pd.DataFrame:
+# Example 3: Data Processing Environment Factory
+class DataProcessor:
+    def process(self, data):
         pass
 
-class DropMissingStrategy(MissingValueStrategy):
-    def handle_missing(self, data: pd.DataFrame) -> pd.DataFrame:
-        return data.dropna()
-
-class MeanImputeStrategy(MissingValueStrategy):
-    def handle_missing(self, data: pd.DataFrame) -> pd.DataFrame:
-        imputer = SimpleImputer(strategy='mean')
-        numeric_cols = data.select_dtypes(include=['number']).columns
-        data[numeric_cols] = imputer.fit_transform(data[numeric_cols])
-        return data
-
-class KNNImputeStrategy(MissingValueStrategy):
-    def __init__(self, n_neighbors=5):
-        self.n_neighbors = n_neighbors
-
-    def handle_missing(self, data: pd.DataFrame) -> pd.DataFrame:
-        imputer = KNNImputer(n_neighbors=self.n_neighbors)
-        numeric_cols = data.select_dtypes(include=['number']).columns
-        data[numeric_cols] = imputer.fit_transform(data[numeric_cols])
-        return data
-
-class MissingValueHandler:
-    def __init__(self, strategy: MissingValueStrategy):
-        self.strategy = strategy
-
-    def handle(self, data: pd.DataFrame) -> pd.DataFrame:
-        return self.strategy.handle_missing(data)
-
-# Usage
-df = pd.DataFrame({'A': [1, 2, None, 4], 'B': [5, None, 7, 8]})
-handler = MissingValueHandler(MeanImputeStrategy())
-cleaned_data = handler.handle(df)
-```
-
-### Example 4: Model Evaluation Strategies
-
-```python
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from sklearn.model_selection import cross_val_score
-
-class EvaluationStrategy(ABC):
-    @abstractmethod
-    def evaluate(self, model, X, y):
+class DataValidator:
+    def validate(self, data):
         pass
 
-class AccuracyEvaluationStrategy(EvaluationStrategy):
-    def evaluate(self, model, X, y):
-        predictions = model.predict(X)
-        return accuracy_score(y, predictions)
+class BatchProcessor(DataProcessor):
+    def process(self, data):
+        return "Batch processing with Spark"
 
-class PrecisionEvaluationStrategy(EvaluationStrategy):
-    def evaluate(self, model, X, y):
-        predictions = model.predict(X)
-        return precision_score(y, predictions, average='weighted')
+class BatchValidator(DataValidator):
+    def validate(self, data):
+        return "Batch validation"
 
-class CrossValidationStrategy(EvaluationStrategy):
-    def __init__(self, cv=5):
-        self.cv = cv
+class StreamProcessor(DataProcessor):
+    def process(self, data):
+        return "Stream processing with Kafka"
 
-    def evaluate(self, model, X, y):
-        scores = cross_val_score(model, X, y, cv=self.cv)
-        return scores.mean()
+class StreamValidator(DataValidator):
+    def validate(self, data):
+        return "Stream validation"
 
-class ModelEvaluator:
-    def __init__(self, strategy: EvaluationStrategy):
-        self.strategy = strategy
-
-    def evaluate(self, model, X, y):
-        return self.strategy.evaluate(model, X, y)
-
-# Usage
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.datasets import make_classification
-
-X, y = make_classification(n_samples=100, n_features=10)
-model = RandomForestClassifier()
-model.fit(X, y)
-
-evaluator = ModelEvaluator(AccuracyEvaluationStrategy())
-score = evaluator.evaluate(model, X, y)
-```
-
-### Example 5: Data Sampling Strategies
-
-```python
-from sklearn.utils import resample
-from imblearn.over_sampling import SMOTE
-from imblearn.under_sampling import RandomUnderSampler
-
-class SamplingStrategy(ABC):
-    @abstractmethod
-    def sample(self, X, y):
+class ProcessingFactory:
+    def create_processor(self):
+        pass
+    def create_validator(self):
         pass
 
-class RandomOversamplingStrategy(SamplingStrategy):
-    def sample(self, X, y):
-        X_resampled, y_resampled = resample(X, y, replace=True, random_state=42)
-        return X_resampled, y_resampled
-
-class SMOTEStrategy(SamplingStrategy):
-    def sample(self, X, y):
-        smote = SMOTE(random_state=42)
-        return smote.fit_resample(X, y)
-
-class UndersamplingStrategy(SamplingStrategy):
-    def sample(self, X, y):
-        undersampler = RandomUnderSampler(random_state=42)
-        return undersampler.fit_resample(X, y)
-
-class DataSampler:
-    def __init__(self, strategy: SamplingStrategy):
-        self.strategy = strategy
-
-    def sample(self, X, y):
-        return self.strategy.sample(X, y)
-
-# Usage
-from sklearn.datasets import make_classification
-X, y = make_classification(n_samples=100, n_features=10, n_classes=2, weights=[0.9, 0.1])
-
-sampler = DataSampler(SMOTEStrategy())
-X_balanced, y_balanced = sampler.sample(X, y)
-```
-
-### Example 6: Data Export Strategies
-
-```python
-class ExportStrategy(ABC):
-    @abstractmethod
-    def export(self, data: pd.DataFrame, filepath: str):
-        pass
-
-class CSVExportStrategy(ExportStrategy):
-    def export(self, data: pd.DataFrame, filepath: str):
-        data.to_csv(filepath, index=False)
-
-class ParquetExportStrategy(ExportStrategy):
-    def export(self, data: pd.DataFrame, filepath: str):
-        data.to_parquet(filepath)
-
-class JSONExportStrategy(ExportStrategy):
-    def export(self, data: pd.DataFrame, filepath: str):
-        data.to_json(filepath, orient='records')
-
-class ExcelExportStrategy(ExportStrategy):
-    def export(self, data: pd.DataFrame, filepath: str):
-        data.to_excel(filepath, index=False)
-
-class DataExporter:
-    def __init__(self, strategy: ExportStrategy):
-        self.strategy = strategy
-
-    def export(self, data: pd.DataFrame, filepath: str):
-        return self.strategy.export(data, filepath)
-
-# Usage
-df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]})
-exporter = DataExporter(ParquetExportStrategy())
-exporter.export(df, 'output.parquet')
-```
-
-### Example 7: Outlier Detection Strategies
-
-```python
-from sklearn.ensemble import IsolationForest
-from sklearn.covariance import EllipticEnvelope
-import numpy as np
-
-class OutlierDetectionStrategy(ABC):
-    @abstractmethod
-    def detect_outliers(self, data: pd.DataFrame) -> np.ndarray:
-        pass
-
-class IQROutlierStrategy(OutlierDetectionStrategy):
-    def detect_outliers(self, data: pd.DataFrame) -> np.ndarray:
-        Q1 = data.quantile(0.25)
-        Q3 = data.quantile(0.75)
-        IQR = Q3 - Q1
-        outlier_mask = ((data < (Q1 - 1.5 * IQR)) | (data > (Q3 + 1.5 * IQR))).any(axis=1)
-        return outlier_mask.values
-
-class IsolationForestStrategy(OutlierDetectionStrategy):
-    def detect_outliers(self, data: pd.DataFrame) -> np.ndarray:
-        clf = IsolationForest(contamination=0.1, random_state=42)
-        outlier_labels = clf.fit_predict(data)
-        return outlier_labels == -1
-
-class EllipticEnvelopeStrategy(OutlierDetectionStrategy):
-    def detect_outliers(self, data: pd.DataFrame) -> np.ndarray:
-        clf = EllipticEnvelope(contamination=0.1, random_state=42)
-        outlier_labels = clf.fit_predict(data)
-        return outlier_labels == -1
-
-class OutlierDetector:
-    def __init__(self, strategy: OutlierDetectionStrategy):
-        self.strategy = strategy
-
-    def detect(self, data: pd.DataFrame) -> np.ndarray:
-        return self.strategy.detect_outliers(data)
-
-# Usage
-df = pd.DataFrame({'A': [1, 2, 3, 100, 5], 'B': [2, 4, 6, 8, 200]})
-detector = OutlierDetector(IQROutlierStrategy())
-outliers = detector.detect(df)
-```
-
-### Example 8: Text Processing Strategies
-
-```python
-from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
-from sklearn.feature_extraction.text import HashingVectorizer
-import pandas as pd
-
-class TextProcessingStrategy(ABC):
-    @abstractmethod
-    def process_text(self, texts: list) -> pd.DataFrame:
-        pass
-
-class TfidfStrategy(TextProcessingStrategy):
-    def __init__(self, max_features=1000):
-        self.max_features = max_features
-
-    def process_text(self, texts: list) -> pd.DataFrame:
-        vectorizer = TfidfVectorizer(max_features=self.max_features)
-        features = vectorizer.fit_transform(texts)
-        return pd.DataFrame(features.toarray(), columns=vectorizer.get_feature_names_out())
-
-class CountVectorizerStrategy(TextProcessingStrategy):
-    def __init__(self, max_features=1000):
-        self.max_features = max_features
-
-    def process_text(self, texts: list) -> pd.DataFrame:
-        vectorizer = CountVectorizer(max_features=self.max_features)
-        features = vectorizer.fit_transform(texts)
-        return pd.DataFrame(features.toarray(), columns=vectorizer.get_feature_names_out())
-
-class HashingStrategy(TextProcessingStrategy):
-    def __init__(self, n_features=1000):
-        self.n_features = n_features
-
-    def process_text(self, texts: list) -> pd.DataFrame:
-        vectorizer = HashingVectorizer(n_features=self.n_features)
-        features = vectorizer.fit_transform(texts)
-        return pd.DataFrame(features.toarray())
-
-class TextProcessor:
-    def __init__(self, strategy: TextProcessingStrategy):
-        self.strategy = strategy
-
-    def process(self, texts: list) -> pd.DataFrame:
-        return self.strategy.process_text(texts)
-
-# Usage
-texts = ["This is a sample text", "Another text document", "Third text example"]
-processor = TextProcessor(TfidfStrategy(max_features=50))
-features = processor.process(texts)
+class BatchFactory(ProcessingFactory):
+    def create_processor(self):
+        return BatchProcessor()
+    def create_validator(self):
+        return BatchValidator()
 ```
 
 ---
 
-## 5. Pipeline Pattern
+### 4. Builder
 
-**Definition**: Processes data through a series of connected stages, where each stage transforms the data.
+**Purpose:** Separates the construction of a complex object from its representation, allowing the same construction process to create different representations.
 
-**Purpose**: Creates modular, reusable data processing workflows that are easy to maintain and extend.
+**When to Use:** When creating complex objects with many optional parameters (e.g., ML pipelines, queries).
 
-### Example 1: Data Preprocessing Pipeline
+**Data Context:** Building data processing pipelines, complex SQL queries, or ML model configurations.
+
+**Examples:**
 
 ```python
-from abc import ABC, abstractmethod
-import pandas as pd
-from sklearn.preprocessing import StandardScaler
-
-class PipelineStage(ABC):
-    @abstractmethod
-    def process(self, data):
-        pass
-
-class DataCleaningStage(PipelineStage):
-    def process(self, data):
-        data = data.drop_duplicates()
-        data = data.fillna(data.mean())
-        return data
-
-class FeatureEngineeringStage(PipelineStage):
-    def process(self, data):
-        if 'age' in data.columns and 'income' in data.columns:
-            data['age_income_ratio'] = data['age'] / data['income']
-        return data
-
-class DataScalingStage(PipelineStage):
-    def process(self, data):
-        numerical_cols = data.select_dtypes(include=['float64', 'int64']).columns
-        scaler = StandardScaler()
-        data[numerical_cols] = scaler.fit_transform(data[numerical_cols])
-        return data
-
-class DataPipeline:
+# Example 1: ML Pipeline Builder
+class MLPipeline:
     def __init__(self):
-        self.stages = []
+        self.preprocessor = None
+        self.feature_selector = None
+        self.model = None
+        self.postprocessor = None
 
-    def add_stage(self, stage: PipelineStage):
-        self.stages.append(stage)
+    def __str__(self):
+        return f"Pipeline: {self.preprocessor} -> {self.feature_selector} -> {self.model} -> {self.postprocessor}"
+
+class MLPipelineBuilder:
+    def __init__(self):
+        self.pipeline = MLPipeline()
+
+    def add_preprocessor(self, preprocessor):
+        self.pipeline.preprocessor = preprocessor
         return self
 
-    def execute(self, data):
+    def add_feature_selector(self, selector):
+        self.pipeline.feature_selector = selector
+        return self
+
+    def add_model(self, model):
+        self.pipeline.model = model
+        return self
+
+    def add_postprocessor(self, postprocessor):
+        self.pipeline.postprocessor = postprocessor
+        return self
+
+    def build(self):
+        return self.pipeline
+
+# Usage
+pipeline = (MLPipelineBuilder()
+            .add_preprocessor("StandardScaler")
+            .add_feature_selector("SelectKBest")
+            .add_model("RandomForest")
+            .add_postprocessor("Calibration")
+            .build())
+```
+
+```python
+# Example 2: SQL Query Builder
+class SQLQuery:
+    def __init__(self):
+        self.select_clause = []
+        self.from_clause = None
+        self.where_clause = []
+        self.group_by_clause = []
+        self.order_by_clause = []
+
+    def build_query(self):
+        query = f"SELECT {', '.join(self.select_clause)}"
+        query += f" FROM {self.from_clause}"
+        if self.where_clause:
+            query += f" WHERE {' AND '.join(self.where_clause)}"
+        if self.group_by_clause:
+            query += f" GROUP BY {', '.join(self.group_by_clause)}"
+        if self.order_by_clause:
+            query += f" ORDER BY {', '.join(self.order_by_clause)}"
+        return query
+
+class QueryBuilder:
+    def __init__(self):
+        self.query = SQLQuery()
+
+    def select(self, *columns):
+        self.query.select_clause.extend(columns)
+        return self
+
+    def from_table(self, table):
+        self.query.from_clause = table
+        return self
+
+    def where(self, condition):
+        self.query.where_clause.append(condition)
+        return self
+
+    def group_by(self, *columns):
+        self.query.group_by_clause.extend(columns)
+        return self
+
+    def order_by(self, *columns):
+        self.query.order_by_clause.extend(columns)
+        return self
+
+    def build(self):
+        return self.query.build_query()
+
+# Usage
+query = (QueryBuilder()
+         .select("customer_id", "SUM(amount)")
+         .from_table("sales")
+         .where("date >= '2024-01-01'")
+         .group_by("customer_id")
+         .order_by("SUM(amount) DESC")
+         .build())
+```
+
+```python
+# Example 3: Data Transformation Pipeline Builder
+class DataPipeline:
+    def __init__(self):
+        self.transformations = []
+        self.source = None
+        self.destination = None
+
+    def execute(self):
+        return f"Pipeline: {self.source} -> {self.transformations} -> {self.destination}"
+
+class DataPipelineBuilder:
+    def __init__(self):
+        self.pipeline = DataPipeline()
+
+    def from_source(self, source):
+        self.pipeline.source = source
+        return self
+
+    def add_transformation(self, transformation):
+        self.pipeline.transformations.append(transformation)
+        return self
+
+    def to_destination(self, destination):
+        self.pipeline.destination = destination
+        return self
+
+    def build(self):
+        return self.pipeline
+
+# Usage
+pipeline = (DataPipelineBuilder()
+            .from_source("PostgreSQL")
+            .add_transformation("Clean nulls")
+            .add_transformation("Normalize")
+            .add_transformation("Aggregate")
+            .to_destination("Redshift")
+            .build())
+```
+
+---
+
+### 5. Prototype
+
+**Purpose:** Creates new objects by copying an existing object (prototype).
+
+**When to Use:** When object creation is expensive or complex, and you need similar objects.
+
+**Data Context:** Cloning trained models, duplicating data processing configurations, or creating similar datasets.
+
+**Examples:**
+
+```python
+# Example 1: Model Configuration Cloning
+import copy
+
+class ModelConfig:
+    def __init__(self, learning_rate, batch_size, epochs, optimizer):
+        self.learning_rate = learning_rate
+        self.batch_size = batch_size
+        self.epochs = epochs
+        self.optimizer = optimizer
+
+    def clone(self):
+        return copy.deepcopy(self)
+
+    def __str__(self):
+        return f"LR: {self.learning_rate}, BS: {self.batch_size}, Epochs: {self.epochs}, Opt: {self.optimizer}"
+
+# Usage
+base_config = ModelConfig(0.001, 32, 100, "Adam")
+experiment1 = base_config.clone()
+experiment1.learning_rate = 0.01
+
+experiment2 = base_config.clone()
+experiment2.batch_size = 64
+```
+
+```python
+# Example 2: Dataset Template Cloning
+class DatasetConfig:
+    def __init__(self, source, filters, transformations):
+        self.source = source
+        self.filters = filters.copy()
+        self.transformations = transformations.copy()
+
+    def clone(self):
+        return DatasetConfig(
+            self.source,
+            self.filters.copy(),
+            self.transformations.copy()
+        )
+
+    def add_filter(self, filter_condition):
+        self.filters.append(filter_condition)
+
+# Usage
+base_dataset = DatasetConfig(
+    source="sales_db",
+    filters=["date >= '2024-01-01'"],
+    transformations=["remove_nulls", "normalize"]
+)
+
+january_data = base_dataset.clone()
+january_data.add_filter("month = 1")
+
+february_data = base_dataset.clone()
+february_data.add_filter("month = 2")
+```
+
+```python
+# Example 3: ETL Job Template
+class ETLJob:
+    def __init__(self, name, extract_query, transform_steps, load_target):
+        self.name = name
+        self.extract_query = extract_query
+        self.transform_steps = transform_steps.copy()
+        self.load_target = load_target
+
+    def clone(self):
+        return ETLJob(
+            self.name + "_copy",
+            self.extract_query,
+            self.transform_steps.copy(),
+            self.load_target
+        )
+
+# Usage
+daily_job = ETLJob(
+    name="daily_sales",
+    extract_query="SELECT * FROM sales WHERE date = CURRENT_DATE",
+    transform_steps=["clean", "aggregate", "enrich"],
+    load_target="warehouse.sales_daily"
+)
+
+weekly_job = daily_job.clone()
+weekly_job.name = "weekly_sales"
+weekly_job.extract_query = "SELECT * FROM sales WHERE date >= CURRENT_DATE - 7"
+```
+
+---
+
+## II. STRUCTURAL DESIGN PATTERNS
+
+_Patterns that deal with object composition and relationships_
+
+### 1. Adapter
+
+**Purpose:** Allows incompatible interfaces to work together by wrapping one interface to match another.
+
+**When to Use:** When integrating legacy systems, third-party libraries, or different data formats.
+
+**Data Context:** Adapting different data sources to a common interface or converting between data formats.
+
+**Examples:**
+
+```python
+# Example 1: Data Source Adapter
+class ModernDataAPI:
+    def get_data(self):
+        return {"data": [1, 2, 3, 4, 5], "format": "json"}
+
+class LegacyDataSystem:
+    def fetch_records(self):
+        return "1,2,3,4,5"  # Returns CSV string
+
+class LegacyDataAdapter:
+    def __init__(self, legacy_system):
+        self.legacy_system = legacy_system
+
+    def get_data(self):
+        csv_data = self.legacy_system.fetch_records()
+        data_list = [int(x) for x in csv_data.split(',')]
+        return {"data": data_list, "format": "json"}
+
+# Usage
+legacy = LegacyDataSystem()
+adapter = LegacyDataAdapter(legacy)
+data = adapter.get_data()  # Now compatible with ModernDataAPI interface
+```
+
+```python
+# Example 2: ML Framework Adapter
+class ScikitLearnModel:
+    def fit(self, X, y):
+        return "Scikit-learn training"
+
+    def predict(self, X):
+        return "Scikit-learn predictions"
+
+class TensorFlowModel:
+    def train(self, features, labels, epochs):
+        return "TensorFlow training"
+
+    def inference(self, features):
+        return "TensorFlow predictions"
+
+class TensorFlowAdapter:
+    def __init__(self, tf_model):
+        self.tf_model = tf_model
+
+    def fit(self, X, y):
+        return self.tf_model.train(X, y, epochs=10)
+
+    def predict(self, X):
+        return self.tf_model.inference(X)
+
+# Usage - now both models have the same interface
+sklearn_model = ScikitLearnModel()
+tf_model = TensorFlowModel()
+tf_adapted = TensorFlowAdapter(tf_model)
+
+# Both can be used identically
+sklearn_model.fit(X_train, y_train)
+tf_adapted.fit(X_train, y_train)
+```
+
+```python
+# Example 3: Database Result Adapter
+class PostgreSQLResult:
+    def __init__(self, rows):
+        self.rows = rows
+
+    def fetch_all(self):
+        return self.rows
+
+class MongoDBResult:
+    def __init__(self, cursor):
+        self.cursor = cursor
+
+    def get_documents(self):
+        return list(self.cursor)
+
+class MongoDBResultAdapter:
+    def __init__(self, mongo_result):
+        self.mongo_result = mongo_result
+
+    def fetch_all(self):
+        return self.mongo_result.get_documents()
+
+# Usage - unified interface for different databases
+pg_result = PostgreSQLResult([{"id": 1}, {"id": 2}])
+mongo_result = MongoDBResult([{"_id": 1}, {"_id": 2}])
+mongo_adapted = MongoDBResultAdapter(mongo_result)
+
+# Both can be accessed the same way
+data1 = pg_result.fetch_all()
+data2 = mongo_adapted.fetch_all()
+```
+
+---
+
+### 2. Bridge
+
+**Purpose:** Separates abstraction from implementation so they can vary independently.
+
+**When to Use:** When you want to avoid permanent binding between abstraction and implementation.
+
+**Data Context:** Separating data processing logic from storage mechanisms or visualization from data sources.
+
+**Examples:**
+
+```python
+# Example 1: Data Visualization Bridge
+class DataSource:
+    def get_data(self):
+        pass
+
+class SQLDataSource(DataSource):
+    def get_data(self):
+        return [10, 20, 30, 40, 50]
+
+class APIDataSource(DataSource):
+    def get_data(self):
+        return [15, 25, 35, 45, 55]
+
+class Visualization:
+    def __init__(self, data_source):
+        self.data_source = data_source
+
+    def render(self):
+        pass
+
+class BarChart(Visualization):
+    def render(self):
+        data = self.data_source.get_data()
+        return f"Bar chart with data: {data}"
+
+class LineChart(Visualization):
+    def render(self):
+        data = self.data_source.get_data()
+        return f"Line chart with data: {data}"
+
+# Usage - any visualization can work with any data source
+sql_source = SQLDataSource()
+api_source = APIDataSource()
+
+bar_from_sql = BarChart(sql_source)
+line_from_api = LineChart(api_source)
+bar_from_api = BarChart(api_source)
+```
+
+```python
+# Example 2: Report Generation Bridge
+class DataFetcher:
+    def fetch(self):
+        pass
+
+class DatabaseFetcher(DataFetcher):
+    def fetch(self):
+        return {"sales": 10000, "customers": 500}
+
+class APIFetcher(DataFetcher):
+    def fetch(self):
+        return {"sales": 12000, "customers": 600}
+
+class Report:
+    def __init__(self, fetcher):
+        self.fetcher = fetcher
+
+    def generate(self):
+        pass
+
+class PDFReport(Report):
+    def generate(self):
+        data = self.fetcher.fetch()
+        return f"PDF Report: {data}"
+
+class ExcelReport(Report):
+    def generate(self):
+        data = self.fetcher.fetch()
+        return f"Excel Report: {data}"
+
+# Usage
+db_fetcher = DatabaseFetcher()
+api_fetcher = APIFetcher()
+
+pdf_from_db = PDFReport(db_fetcher)
+excel_from_api = ExcelReport(api_fetcher)
+```
+
+```python
+# Example 3: ML Model Training Bridge
+class DataLoader:
+    def load(self):
+        pass
+
+class CSVLoader(DataLoader):
+    def load(self):
+        return "CSV data loaded"
+
+class ParquetLoader(DataLoader):
+    def load(self):
+        return "Parquet data loaded"
+
+class ModelTrainer:
+    def __init__(self, data_loader):
+        self.data_loader = data_loader
+
+    def train(self):
+        pass
+
+class SupervisedTrainer(ModelTrainer):
+    def train(self):
+        data = self.data_loader.load()
+        return f"Supervised training with {data}"
+
+class UnsupervisedTrainer(ModelTrainer):
+    def train(self):
+        data = self.data_loader.load()
+        return f"Unsupervised training with {data}"
+
+# Usage
+csv_loader = CSVLoader()
+parquet_loader = ParquetLoader()
+
+supervised_csv = SupervisedTrainer(csv_loader)
+unsupervised_parquet = UnsupervisedTrainer(parquet_loader)
+```
+
+---
+
+### 3. Composite
+
+**Purpose:** Composes objects into tree structures to represent part-whole hierarchies, allowing individual objects and compositions to be treated uniformly.
+
+**When to Use:** When you need to represent hierarchical data structures.
+
+**Data Context:** Building nested data pipelines, hierarchical data structures, or complex feature engineering pipelines.
+
+**Examples:**
+
+```python
+# Example 1: Data Transformation Pipeline
+class DataTransformation:
+    def apply(self, data):
+        pass
+
+class SimpleTransformation(DataTransformation):
+    def __init__(self, name, operation):
+        self.name = name
+        self.operation = operation
+
+    def apply(self, data):
+        return f"Applying {self.name} on {data}"
+
+class CompositeTransformation(DataTransformation):
+    def __init__(self, name):
+        self.name = name
+        self.transformations = []
+
+    def add(self, transformation):
+        self.transformations.append(transformation)
+
+    def apply(self, data):
         result = data
-        for stage in self.stages:
-            result = stage.process(result)
+        for transform in self.transformations:
+            result = transform.apply(result)
+        return result
+
+# Usage
+# Individual transformations
+remove_nulls = SimpleTransformation("RemoveNulls", lambda x: x)
+normalize = SimpleTransformation("Normalize", lambda x: x)
+scale = SimpleTransformation("Scale", lambda x: x)
+
+# Composite transformation
+preprocessing = CompositeTransformation("Preprocessing")
+preprocessing.add(remove_nulls)
+preprocessing.add(normalize)
+
+feature_engineering = CompositeTransformation("FeatureEngineering")
+feature_engineering.add(preprocessing)
+feature_engineering.add(scale)
+
+# Apply entire pipeline
+result = feature_engineering.apply("raw_data")
+```
+
+```python
+# Example 2: Organizational Data Hierarchy
+class DataComponent:
+    def get_size(self):
+        pass
+
+class DataFile(DataComponent):
+    def __init__(self, name, size):
+        self.name = name
+        self.size = size
+
+    def get_size(self):
+        return self.size
+
+class DataFolder(DataComponent):
+    def __init__(self, name):
+        self.name = name
+        self.children = []
+
+    def add(self, component):
+        self.children.append(component)
+
+    def get_size(self):
+        return sum(child.get_size() for child in self.children)
+
+# Usage
+# Individual files
+sales_csv = DataFile("sales.csv", 100)
+customers_csv = DataFile("customers.csv", 50)
+products_json = DataFile("products.json", 30)
+
+# Folders
+data_folder = DataFolder("data")
+data_folder.add(sales_csv)
+data_folder.add(customers_csv)
+
+raw_folder = DataFolder("raw")
+raw_folder.add(data_folder)
+raw_folder.add(products_json)
+
+total_size = raw_folder.get_size()  # 180
+```
+
+```python
+# Example 3: Feature Engineering Tree
+class Feature:
+    def compute(self, data):
+        pass
+
+class BaseFeature(Feature):
+    def __init__(self, name, column):
+        self.name = name
+        self.column = column
+
+    def compute(self, data):
+        return f"Computing {self.name} from {self.column}"
+
+class CompositeFeature(Feature):
+    def __init__(self, name):
+        self.name = name
+        self.features = []
+
+    def add(self, feature):
+        self.features.append(feature)
+
+    def compute(self, data):
+        results = [f.compute(data) for f in self.features]
+        return f"Composite {self.name}: {results}"
+
+# Usage
+age = BaseFeature("age", "birth_date")
+income = BaseFeature("income", "salary")
+age_squared = BaseFeature("age_squared", "age")
+
+demographic_features = CompositeFeature("Demographics")
+demographic_features.add(age)
+demographic_features.add(income)
+demographic_features.add(age_squared)
+
+result = demographic_features.compute("customer_data")
+```
+
+---
+
+### 4. Decorator
+
+**Purpose:** Adds new functionality to objects dynamically without altering their structure.
+
+**When to Use:** When you want to add responsibilities to objects without subclassing.
+
+**Data Context:** Adding logging, caching, validation, or monitoring to data operations.
+
+**Examples:**
+
+```python
+# Example 1: Data Pipeline with Logging
+class DataPipeline:
+    def process(self, data):
+        return f"Processing {data}"
+
+class LoggingDecorator:
+    def __init__(self, pipeline):
+        self.pipeline = pipeline
+
+    def process(self, data):
+        print(f"[LOG] Starting processing: {data}")
+        result = self.pipeline.process(data)
+        print(f"[LOG] Completed processing")
+        return result
+
+class CachingDecorator:
+    def __init__(self, pipeline):
+        self.pipeline = pipeline
+        self.cache = {}
+
+    def process(self, data):
+        if data in self.cache:
+            print(f"[CACHE] Returning cached result for {data}")
+            return self.cache[data]
+        result = self.pipeline.process(data)
+        self.cache[data] = result
         return result
 
 # Usage
 pipeline = DataPipeline()
-pipeline.add_stage(DataCleaningStage()) \
-        .add_stage(FeatureEngineeringStage()) \
-        .add_stage(DataScalingStage())
+logged_pipeline = LoggingDecorator(pipeline)
+cached_logged_pipeline = CachingDecorator(logged_pipeline)
 
-df = pd.DataFrame({
-    'age': [25, 30, None, 35, 40],
-    'income': [50000, 60000, 70000, 80000, 90000],
-    'score': [85, 90, 78, 92, 88]
-})
-
-processed_data = pipeline.execute(df)
+result = cached_logged_pipeline.process("sales_data")
 ```
 
-### Example 2: ML Model Pipeline
-
 ```python
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
-import joblib
+# Example 2: Model Prediction with Monitoring
+class Model:
+    def predict(self, features):
+        return [0.8, 0.2]
 
-class TrainTestSplitStage(PipelineStage):
-    def __init__(self, test_size=0.2):
-        self.test_size = test_size
+class PerformanceMonitorDecorator:
+    def __init__(self, model):
+        self.model = model
 
-    def process(self, data):
-        X = data.drop('target', axis=1)
-        y = data['target']
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=self.test_size, random_state=42
-        )
-        return {
-            'X_train': X_train, 'X_test': X_test,
-            'y_train': y_train, 'y_test': y_test
-        }
+    def predict(self, features):
+        import time
+        start = time.time()
+        result = self.model.predict(features)
+        elapsed = time.time() - start
+        print(f"[PERF] Prediction took {elapsed:.4f} seconds")
+        return result
 
-class ModelTrainingStage(PipelineStage):
-    def __init__(self, model=None):
-        self.model = model or RandomForestClassifier()
+class ValidationDecorator:
+    def __init__(self, model):
+        self.model = model
 
-    def process(self, data):
-        self.model.fit(data['X_train'], data['y_train'])
-        data['model'] = self.model
-        return data
-
-class ModelEvaluationStage(PipelineStage):
-    def process(self, data):
-        predictions = data['model'].predict(data['X_test'])
-        accuracy = accuracy_score(data['y_test'], predictions)
-        data['accuracy'] = accuracy
-        data['predictions'] = predictions
-        return data
-
-class ModelSavingStage(PipelineStage):
-    def __init__(self, model_path='model.pkl'):
-        self.model_path = model_path
-
-    def process(self, data):
-        joblib.dump(data['model'], self.model_path)
-        data['model_path'] = self.model_path
-        return data
+    def predict(self, features):
+        if features is None or len(features) == 0:
+            raise ValueError("Features cannot be empty")
+        return self.model.predict(features)
 
 # Usage
-ml_pipeline = DataPipeline()
-ml_pipeline.add_stage(TrainTestSplitStage(test_size=0.3)) \
-           .add_stage(ModelTrainingStage()) \
-           .add_stage(ModelEvaluationStage()) \
-           .add_stage(ModelSavingStage('rf_model.pkl'))
+model = Model()
+monitored_model = PerformanceMonitorDecorator(model)
+validated_monitored_model = ValidationDecorator(monitored_model)
 
-df_ml = pd.DataFrame({
-    'feature1': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-    'feature2': [2, 4, 6, 8, 10, 12, 14, 16, 18, 20],
-    'target': [0, 1, 0, 1, 0, 1, 0, 1, 0, 1]
-})
-
-results = ml_pipeline.execute(df_ml)
+predictions = validated_monitored_model.predict([1, 2, 3])
 ```
 
-### Example 3: ETL Pipeline
-
 ```python
-class DataExtractionStage(PipelineStage):
-    def __init__(self, source_path):
-        self.source_path = source_path
+# Example 3: Data Query with Auditing
+class DataQuery:
+    def execute(self, query):
+        return f"Executing: {query}"
 
-    def process(self, data):
-        if self.source_path.endswith('.csv'):
-            return pd.read_csv(self.source_path)
-        elif self.source_path.endswith('.json'):
-            return pd.read_json(self.source_path)
-        else:
-            raise ValueError(f"Unsupported file format: {self.source_path}")
+class AuditDecorator:
+    def __init__(self, query_executor):
+        self.query_executor = query_executor
+        self.audit_log = []
 
-class DataTransformationStage(PipelineStage):
-    def process(self, data):
-        # Apply transformations
-        data['processed_date'] = pd.to_datetime(data['date'])
-        data['year'] = data['processed_date'].dt.year
-        data['month'] = data['processed_date'].dt.month
-        return data
+    def execute(self, query):
+        self.audit_log.append(f"Query executed: {query}")
+        return self.query_executor.execute(query)
 
-class DataLoadingStage(PipelineStage):
-    def __init__(self, output_path):
-        self.output_path = output_path
+class RetryDecorator:
+    def __init__(self, query_executor, max_retries=3):
+        self.query_executor = query_executor
+        self.max_retries = max_retries
 
-    def process(self, data):
-        data.to_csv(self.output_path, index=False)
-        return data
+    def execute(self, query):
+        for attempt in range(self.max_retries):
+            try:
+                return self.query_executor.execute(query)
+            except Exception as e:
+                print(f"Attempt {attempt + 1} failed: {e}")
+        raise Exception("Max retries exceeded")
 
 # Usage
-etl_pipeline = DataPipeline()
-etl_pipeline.add_stage(DataExtractionStage('raw_data.csv')) \
-            .add_stage(DataTransformationStage()) \
-            .add_stage(DataLoadingStage('processed_data.csv'))
+query = DataQuery()
+audited_query = AuditDecorator(query)
+retry_audited_query = RetryDecorator(audited_query)
 
-result = etl_pipeline.execute(None)
-```
-
-### Example 4: Text Processing Pipeline
-
-```python
-import re
-from sklearn.feature_extraction.text import TfidfVectorizer
-
-class TextCleaningStage(PipelineStage):
-    def process(self, data):
-        data['cleaned_text'] = data['text'].apply(self._clean_text)
-        return data
-
-    def _clean_text(self, text):
-        text = text.lower()
-        text = re.sub(r'[^a-zA-Z\s]', '', text)
-        return text
-
-class TextTokenizationStage(PipelineStage):
-    def process(self, data):
-        data['tokens'] = data['cleaned_text'].apply(lambda x: x.split())
-        return data
-
-class TextVectorizationStage(PipelineStage):
-    def process(self, data):
-        vectorizer = TfidfVectorizer()
-        features = vectorizer.fit_transform(data['cleaned_text'])
-        feature_names = vectorizer.get_feature_names_out()
-
-        feature_df = pd.DataFrame(features.toarray(), columns=feature_names)
-        return pd.concat([data, feature_df], axis=1)
-
-# Usage
-text_pipeline = DataPipeline()
-text_pipeline.add_stage(TextCleaningStage()) \
-             .add_stage(TextTokenizationStage()) \
-             .add_stage(TextVectorizationStage())
-
-text_df = pd.DataFrame({
-    'text': ['Hello World!', 'Data Science is Amazing!', 'Python is Great!!!']
-})
-
-processed_text = text_pipeline.execute(text_df)
-```
-
-### Example 5: Feature Engineering Pipeline
-
-```python
-from sklearn.preprocessing import PolynomialFeatures, LabelEncoder
-
-class CategoricalEncodingStage(PipelineStage):
-    def process(self, data):
-        categorical_cols = data.select_dtypes(include=['object']).columns
-        for col in categorical_cols:
-            encoder = LabelEncoder()
-            data[f'{col}_encoded'] = encoder.fit_transform(data[col])
-        return data
-
-class PolynomialFeatureStage(PipelineStage):
-    def __init__(self, degree=2):
-        self.degree = degree
-
-    def process(self, data):
-        numerical_cols = data.select_dtypes(include=['float64', 'int64']).columns
-        poly = PolynomialFeatures(degree=self.degree, include_bias=False)
-        poly_features = poly.fit_transform(data[numerical_cols])
-        poly_df = pd.DataFrame(poly_features, columns=poly.get_feature_names_out())
-        return pd.concat([data, poly_df], axis=1)
-
-class FeatureSelectionStage(PipelineStage):
-    def __init__(self, threshold=0.1):
-        self.threshold = threshold
-
-    def process(self, data):
-        correlation_matrix = data.corr().abs()
-        upper_triangle = correlation_matrix.where(
-            np.triu(np.ones(correlation_matrix.shape), k=1).astype(bool)
-        )
-        high_corr_features = [col for col in upper_triangle.columns if any(upper_triangle[col] > self.threshold)]
-        return data.drop(columns=high_corr_features)
-
-# Usage
-feature_pipeline = DataPipeline()
-feature_pipeline.add_stage(CategoricalEncodingStage()) \
-                 .add_stage(PolynomialFeatureStage(degree=2)) \
-                 .add_stage(FeatureSelectionStage(threshold=0.8))
-
-df = pd.DataFrame({
-    'category': ['A', 'B', 'C', 'A', 'B'],
-    'value1': [1, 2, 3, 4, 5],
-    'value2': [2, 4, 6, 8, 10]
-})
-
-engineered_features = feature_pipeline.execute(df)
-```
-
-### Example 6: Data Validation Pipeline
-
-```python
-class SchemaValidationStage(PipelineStage):
-    def __init__(self, expected_columns):
-        self.expected_columns = expected_columns
-
-    def process(self, data):
-        missing_cols = set(self.expected_columns) - set(data.columns)
-        if missing_cols:
-            raise ValueError(f"Missing columns: {missing_cols}")
-        return data
-
-class DataTypeValidationStage(PipelineStage):
-    def __init__(self, dtype_map):
-        self.dtype_map = dtype_map
-
-    def process(self, data):
-        for col, expected_dtype in self.dtype_map.items():
-            if col in data.columns:
-                try:
-                    data[col] = data[col].astype(expected_dtype)
-                except:
-                    raise ValueError(f"Cannot convert {col} to {expected_dtype}")
-        return data
-
-class RangeValidationStage(PipelineStage):
-    def __init__(self, range_map):
-        self.range_map = range_map
-
-    def process(self, data):
-        for col, (min_val, max_val) in self.range_map.items():
-            if col in data.columns:
-                out_of_range = (data[col] < min_val) | (data[col] > max_val)
-                if out_of_range.any():
-                    raise ValueError(f"Values in {col} are out of range [{min_val}, {max_val}]")
-        return data
-
-# Usage
-validation_pipeline = DataPipeline()
-validation_pipeline.add_stage(SchemaValidationStage(['age', 'income'])) \
-                   .add_stage(DataTypeValidationStage({'age': 'int', 'income': 'float'})) \
-                   .add_stage(RangeValidationStage({'age': (0, 120), 'income': (0, 1000000)}))
-
-df = pd.DataFrame({
-    'age': [25, 30, 35],
-    'income': [50000.0, 60000.0, 70000.0]
-})
-
-validated_data = validation_pipeline.execute(df)
-```
-
-### Example 7: Time Series Processing Pipeline
-
-```python
-class TimeSeriesResamplingStage(PipelineStage):
-    def __init__(self, freq='D'):
-        self.freq = freq
-
-    def process(self, data):
-        data['timestamp'] = pd.to_datetime(data['timestamp'])
-        data = data.set_index('timestamp')
-        return data.resample(self.freq).mean()
-
-class MovingAverageStage(PipelineStage):
-    def __init__(self, window=7):
-        self.window = window
-
-    def process(self, data):
-        for col in data.columns:
-            data[f'{col}_ma'] = data[col].rolling(window=self.window).mean()
-        return data
-
-class SeasonalDecomposeStage(PipelineStage):
-    def process(self, data):
-        from statsmodels.tsa.seasonal import seasonal_decompose
-        for col in data.columns:
-            if not col.endswith('_ma'):
-                decomposition = seasonal_decompose(data[col].dropna(), model='additive')
-                data[f'{col}_trend'] = decomposition.trend
-                data[f'{col}_seasonal'] = decomposition.seasonal
-                data[f'{col}_residual'] = decomposition.resid
-        return data
-
-# Usage
-ts_pipeline = DataPipeline()
-ts_pipeline.add_stage(TimeSeriesResamplingStage(freq='D')) \
-           .add_stage(MovingAverageStage(window=7)) \
-           .add_stage(SeasonalDecomposeStage())
-
-# Sample time series data
-dates = pd.date_range('2023-01-01', periods=100, freq='D')
-ts_df = pd.DataFrame({
-    'timestamp': dates,
-    'value': np.random.randn(100).cumsum()
-})
-
-processed_ts = ts_pipeline.execute(ts_df)
-```
-
-### Example 8: Model Comparison Pipeline
-
-```python
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, precision_score, recall_score
-
-class ModelTrainingStage(PipelineStage):
-    def __init__(self, models):
-        self.models = models
-
-    def process(self, data):
-        trained_models = {}
-        for name, model in self.models.items():
-            model.fit(data['X_train'], data['y_train'])
-            trained_models[name] = model
-        data['trained_models'] = trained_models
-        return data
-
-class ModelEvaluationStage(PipelineStage):
-    def process(self, data):
-        results = {}
-        for name, model in data['trained_models'].items():
-            predictions = model.predict(data['X_test'])
-            results[name] = {
-                'accuracy': accuracy_score(data['y_test'], predictions),
-                'precision': precision_score(data['y_test'], predictions, average='weighted'),
-                'recall': recall_score(data['y_test'], predictions, average='weighted')
-            }
-        data['evaluation_results'] = results
-        return data
-
-class BestModelSelectionStage(PipelineStage):
-    def __init__(self, metric='accuracy'):
-        self.metric = metric
-
-    def process(self, data):
-        best_model_name = max(
-            data['evaluation_results'].keys(),
-            key=lambda x: data['evaluation_results'][x][self.metric]
-        )
-        data['best_model'] = data['trained_models'][best_model_name]
-        data['best_model_name'] = best_model_name
-        return data
-
-# Usage
-models = {
-    'rf': RandomForestClassifier(n_estimators=100),
-    'gb': GradientBoostingClassifier(n_estimators=100),
-    'lr': LogisticRegression(max_iter=1000)
-}
-
-model_comparison_pipeline = DataPipeline()
-model_comparison_pipeline.add_stage(TrainTestSplitStage()) \
-                         .add_stage(ModelTrainingStage(models)) \
-                         .add_stage(ModelEvaluationStage()) \
-                         .add_stage(BestModelSelectionStage(metric='accuracy'))
-
-# Sample data
-from sklearn.datasets import make_classification
-X, y = make_classification(n_samples=1000, n_features=10, n_classes=2)
-df = pd.DataFrame(X, columns=[f'feature_{i}' for i in range(X.shape[1])])
-df['target'] = y
-
-results = model_comparison_pipeline.execute(df)
-print(f"Best model: {results['best_model_name']}")
-print(f"Results: {results['evaluation_results']}")
+result = retry_audited_query.execute("SELECT * FROM sales")
 ```
 
 ---
 
-## Summary
+### 5. Facade
 
-These design patterns provide comprehensive solutions for data engineering and data science workflows:
+**Purpose:** Provides a simplified interface to a complex subsystem.
 
-- **Factory Pattern** (8 examples): Creates appropriate objects based on type - data sources, models, databases, transformers, visualizations, validators, feature engineers
-- **Singleton Pattern** (7 examples): Manages shared resources - database connections, configuration, logging, caching, model registry, resource pools, metrics
-- **Decorator Pattern** (8 examples): Adds functionality - execution timing, validation, caching, error handling, performance monitoring, retry logic, I/O logging, type conversion
-- **Strategy Pattern** (8 examples): Interchangeable algorithms - data scaling, feature selection, missing values, model evaluation, data sampling, export formats, outlier detection, text processing
-- **Pipeline Pattern** (8 examples): Sequential processing - data preprocessing, ML modeling, ETL, text processing, feature engineering, data validation, time series, model comparison
+**When to Use:** When you want to hide complexity and provide a simple API.
 
-Each pattern includes multiple real-world examples that solve common challenges in data science projects while maintaining clean, maintainable, and reusable code architecture.
+**Data Context:** Simplifying complex data operations, ML workflows, or multi-step ETL processes.
+
+**Examples:**
+
+```python
+# Example 1: ML Training Facade
+class DataLoader:
+    def load_data(self, path):
+        return f"Data loaded from {path}"
+
+class DataPreprocessor:
+    def preprocess(self, data):
+        return f"Preprocessed {data}"
+
+class FeatureEngineering:
+    def create_features(self, data):
+        return f"Features created from {data}"
+
+class ModelTrainer:
+    def train(self, features, labels):
+        return "Model trained"
+
+class ModelEvaluator:
+    def evaluate(self, model, test_data):
+        return "Accuracy: 0.95"
+
+class MLPipelineFacade:
+    def __init__(self):
+        self.loader = DataLoader()
+        self.preprocessor = DataPreprocessor()
+        self.feature_engineer = FeatureEngineering()
+        self.trainer = ModelTrainer()
+        self.evaluator = ModelEvaluator()
+
+    def train_model(self, data_path):
+        # Simplified interface for complex workflow
+        data = self.loader.load_data(data_path)
+        clean_data = self.preprocessor.preprocess(data)
+```
