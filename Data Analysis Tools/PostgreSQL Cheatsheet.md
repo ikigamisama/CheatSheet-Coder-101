@@ -1,654 +1,1031 @@
-# PostgreSQL Cheatsheet
+# PostgreSQL for Data Analysis - Essential Cheatsheet
 
-## Connection & Authentication
+## Getting Started
+
+### Connect to Database
 
 ```bash
 # Connect to PostgreSQL
 psql -U username -d database_name
-psql -h hostname -p 5432 -U username -d database_name
 
-# Connect as specific user to specific database
-psql -U postgres -d mydb
+# Connect with password
+psql -U username -W -d database_name
 
-# Connect with password prompt
-psql -U username -W
-
-# Exit PostgreSQL
+# Exit
 \q
 ```
 
-## psql Meta-Commands
+### Essential psql Commands
 
 ```sql
--- Database operations
-\l                          -- List all databases
-\c database_name            -- Connect to database
-\conninfo                   -- Show connection info
-
--- Table operations
+\l                          -- List databases
+\c database_name            -- Switch database
 \dt                         -- List tables
-\dt+                        -- List tables with details
-\d table_name               -- Describe table
-\d+ table_name              -- Detailed table description
+\d table_name               -- Show table structure
+\d+ table_name              -- Detailed table info with sizes
 
--- Schema operations
-\dn                         -- List schemas
-\dt schema_name.*           -- List tables in schema
-
--- User operations
-\du                         -- List users/roles
-\du+                        -- List users with details
-
--- Other useful commands
-\timing on                  -- Enable query timing
-\x                          -- Toggle expanded display
-\i filename.sql             -- Execute SQL from file
-\o filename.txt             -- Output to file
-\h command                  -- Help for SQL command
-\?                          -- List all meta-commands
+\x                          -- Toggle vertical display (great for wide results)
+\timing on                  -- Show query execution time
+\i script.sql               -- Run SQL file
+\copy table TO 'file.csv' CSV HEADER  -- Export to CSV
 ```
 
-## Database Operations
+---
+
+## Exploring Data
+
+### Quick Data Overview
 
 ```sql
--- Show all databases
-SELECT datname FROM pg_database;
+-- See table structure
+\d table_name
 
--- Create database
-CREATE DATABASE database_name;
-CREATE DATABASE database_name WITH ENCODING 'UTF8';
+-- Count rows
+SELECT COUNT(*) FROM table_name;
 
--- Drop database
-DROP DATABASE database_name;
-DROP DATABASE IF EXISTS database_name;
-
--- Show current database
-SELECT current_database();
-
--- Database size
-SELECT pg_size_pretty(pg_database_size('database_name'));
-```
-
-## Schema Operations
-
-```sql
--- Create schema
-CREATE SCHEMA schema_name;
-
--- Drop schema
-DROP SCHEMA schema_name;
-DROP SCHEMA schema_name CASCADE;  -- Drop with all objects
-
--- Set search path
-SET search_path TO schema_name, public;
-```
-
-## Table Operations
-
-```sql
--- Create table
-CREATE TABLE table_name (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) UNIQUE,
-    age INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Create table with constraints
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    username VARCHAR(50) UNIQUE NOT NULL,
-    email VARCHAR(255) UNIQUE,
-    age INTEGER CHECK (age >= 0),
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
--- Drop table
-DROP TABLE table_name;
-DROP TABLE IF EXISTS table_name CASCADE;
-
--- Rename table
-ALTER TABLE old_name RENAME TO new_name;
-
--- Truncate table
-TRUNCATE TABLE table_name;
-TRUNCATE TABLE table_name RESTART IDENTITY;  -- Reset auto-increment
-```
-
-## Column Operations
-
-```sql
--- Add column
-ALTER TABLE table_name ADD COLUMN column_name datatype;
-ALTER TABLE table_name ADD COLUMN column_name VARCHAR(255) DEFAULT 'default_value';
-
--- Drop column
-ALTER TABLE table_name DROP COLUMN column_name;
-
--- Rename column
-ALTER TABLE table_name RENAME COLUMN old_name TO new_name;
-
--- Change column type
-ALTER TABLE table_name ALTER COLUMN column_name TYPE new_datatype;
-ALTER TABLE table_name ALTER COLUMN column_name TYPE VARCHAR(100) USING column_name::VARCHAR(100);
-
--- Set/drop default
-ALTER TABLE table_name ALTER COLUMN column_name SET DEFAULT value;
-ALTER TABLE table_name ALTER COLUMN column_name DROP DEFAULT;
-
--- Set/drop NOT NULL
-ALTER TABLE table_name ALTER COLUMN column_name SET NOT NULL;
-ALTER TABLE table_name ALTER COLUMN column_name DROP NOT NULL;
-```
-
-## Data Types
-
-```sql
--- Numeric Types
-SMALLINT, INTEGER, BIGINT
-DECIMAL(precision, scale), NUMERIC(precision, scale)
-REAL, DOUBLE PRECISION
-SERIAL, BIGSERIAL                   -- Auto-incrementing
-
--- Character Types
-CHAR(n)                            -- Fixed length
-VARCHAR(n)                         -- Variable length
-TEXT                               -- Unlimited length
-
--- Date/Time Types
-DATE                               -- Date only
-TIME                               -- Time only
-TIMESTAMP                          -- Date and time
-TIMESTAMPTZ                        -- Timestamp with timezone
-INTERVAL                           -- Time interval
-
--- Boolean
-BOOLEAN                            -- TRUE, FALSE, NULL
-
--- Binary Data
-BYTEA                              -- Binary data
-
--- JSON Types
-JSON                               -- JSON data
-JSONB                              -- Binary JSON (faster)
-
--- Arrays
-INTEGER[]                          -- Array of integers
-TEXT[]                             -- Array of text
-
--- UUID
-UUID                               -- Universally unique identifier
-
--- Network Types
-INET                               -- IP address
-CIDR                               -- Network address
-MACADDR                            -- MAC address
-```
-
-## CRUD Operations
-
-### INSERT
-
-```sql
--- Insert single record
-INSERT INTO table_name (column1, column2) VALUES (value1, value2);
-
--- Insert multiple records
-INSERT INTO table_name (column1, column2) VALUES
-    (value1, value2),
-    (value3, value4);
-
--- Insert and return
-INSERT INTO table_name (column1, column2) VALUES (value1, value2) RETURNING id;
-
--- Insert from SELECT
-INSERT INTO table_name (column1, column2)
-SELECT column1, column2 FROM other_table WHERE condition;
-
--- Upsert (INSERT ... ON CONFLICT)
-INSERT INTO table_name (id, name) VALUES (1, 'John')
-ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
-
-INSERT INTO table_name (email, name) VALUES ('john@example.com', 'John')
-ON CONFLICT (email) DO NOTHING;
-```
-
-### SELECT
-
-```sql
--- Basic select
-SELECT * FROM table_name;
-SELECT column1, column2 FROM table_name;
-
--- With conditions
-SELECT * FROM table_name WHERE condition;
-
--- Case-sensitive/insensitive matching
-SELECT * FROM table_name WHERE column LIKE 'pattern%';
-SELECT * FROM table_name WHERE column ILIKE 'pattern%';  -- Case insensitive
-
--- Regular expressions
-SELECT * FROM table_name WHERE column ~ 'pattern';       -- Case sensitive
-SELECT * FROM table_name WHERE column ~* 'pattern';      -- Case insensitive
-
--- Sorting
-SELECT * FROM table_name ORDER BY column1 ASC, column2 DESC;
-
--- Limiting results
+-- Sample data
 SELECT * FROM table_name LIMIT 10;
-SELECT * FROM table_name LIMIT 10 OFFSET 20;
 
--- Window functions
-SELECT column1, ROW_NUMBER() OVER (ORDER BY column1) FROM table_name;
-SELECT column1, RANK() OVER (PARTITION BY column2 ORDER BY column1) FROM table_name;
+-- Random sample
+SELECT * FROM table_name ORDER BY RANDOM() LIMIT 100;
 
--- Common Table Expressions (CTE)
-WITH cte_name AS (
-    SELECT column1, column2 FROM table_name WHERE condition
-)
-SELECT * FROM cte_name;
-```
-
-### UPDATE
-
-```sql
--- Update records
-UPDATE table_name SET column1 = value1 WHERE condition;
-
--- Update with RETURNING
-UPDATE table_name SET column1 = value1 WHERE condition RETURNING *;
-
--- Update from another table
-UPDATE table1 SET column1 = table2.column1
-FROM table2
-WHERE table1.id = table2.foreign_id;
-```
-
-### DELETE
-
-```sql
--- Delete records
-DELETE FROM table_name WHERE condition;
-
--- Delete with RETURNING
-DELETE FROM table_name WHERE condition RETURNING *;
-
--- Delete using another table
-DELETE FROM table1
-USING table2
-WHERE table1.id = table2.foreign_id AND condition;
-```
-
-## Joins
-
-```sql
--- INNER JOIN
-SELECT * FROM table1 t1
-INNER JOIN table2 t2 ON t1.id = t2.foreign_id;
-
--- LEFT JOIN
-SELECT * FROM table1 t1
-LEFT JOIN table2 t2 ON t1.id = t2.foreign_id;
-
--- RIGHT JOIN
-SELECT * FROM table1 t1
-RIGHT JOIN table2 t2 ON t1.id = t2.foreign_id;
-
--- FULL OUTER JOIN
-SELECT * FROM table1 t1
-FULL OUTER JOIN table2 t2 ON t1.id = t2.foreign_id;
-
--- CROSS JOIN
-SELECT * FROM table1 CROSS JOIN table2;
-```
-
-## Functions
-
-### String Functions
-
-```sql
-CONCAT(str1, str2)              -- Concatenate strings
-LENGTH(str)                     -- String length
-UPPER(str), LOWER(str)          -- Case conversion
-TRIM(str)                       -- Remove spaces
-SUBSTRING(str FROM start FOR len) -- Extract substring
-REPLACE(str, old, new)          -- Replace text
-SPLIT_PART(str, delimiter, n)   -- Split string
-POSITION(substring IN string)   -- Find position
-```
-
-### Date/Time Functions
-
-```sql
-NOW()                           -- Current timestamp
-CURRENT_DATE                    -- Current date
-CURRENT_TIME                    -- Current time
-EXTRACT(field FROM timestamp)   -- Extract part (YEAR, MONTH, DAY, etc.)
-DATE_TRUNC('field', timestamp)  -- Truncate to field
-AGE(timestamp1, timestamp2)     -- Calculate age/difference
-TO_CHAR(timestamp, format)      -- Format timestamp
-TO_DATE(string, format)         -- Parse date from string
-```
-
-### Aggregate Functions
-
-```sql
-COUNT(*)                        -- Count rows
-COUNT(column)                   -- Count non-null values
-SUM(column)                     -- Sum values
-AVG(column)                     -- Average
-MIN(column), MAX(column)        -- Min/Max values
-STRING_AGG(column, delimiter)   -- Concatenate with delimiter
-ARRAY_AGG(column)               -- Aggregate into array
-```
-
-### Mathematical Functions
-
-```sql
-ABS(number)                     -- Absolute value
-CEIL(number), CEILING(number)   -- Ceiling
-FLOOR(number)                   -- Floor
-ROUND(number, decimals)         -- Round
-RANDOM()                        -- Random number 0-1
-GREATEST(val1, val2, ...)       -- Maximum value
-LEAST(val1, val2, ...)          -- Minimum value
-```
-
-## Indexes
-
-```sql
--- Create index
-CREATE INDEX index_name ON table_name (column1, column2);
-CREATE UNIQUE INDEX index_name ON table_name (column1);
-
--- Partial index
-CREATE INDEX index_name ON table_name (column1) WHERE condition;
-
--- Expression index
-CREATE INDEX index_name ON table_name (LOWER(column1));
-
--- GIN index (for arrays, JSON)
-CREATE INDEX index_name ON table_name USING GIN (json_column);
-
--- Show indexes
-\di                             -- List indexes
-SELECT * FROM pg_indexes WHERE tablename = 'table_name';
-
--- Drop index
-DROP INDEX index_name;
-```
-
-## Views
-
-```sql
--- Create view
-CREATE VIEW view_name AS
-SELECT column1, column2 FROM table_name WHERE condition;
-
--- Materialized view
-CREATE MATERIALIZED VIEW mv_name AS
-SELECT column1, column2 FROM table_name WHERE condition;
-
--- Refresh materialized view
-REFRESH MATERIALIZED VIEW mv_name;
-
--- Drop view
-DROP VIEW view_name;
-DROP MATERIALIZED VIEW mv_name;
-```
-
-## Functions & Procedures
-
-```sql
--- Create function
-CREATE OR REPLACE FUNCTION function_name(param1 INTEGER, param2 TEXT)
-RETURNS INTEGER AS $$
-BEGIN
-    -- function body
-    RETURN param1 + LENGTH(param2);
-END;
-$$ LANGUAGE plpgsql;
-
--- Create procedure (PostgreSQL 11+)
-CREATE OR REPLACE PROCEDURE procedure_name(param1 INTEGER)
-LANGUAGE plpgsql AS $$
-BEGIN
-    -- procedure body
-    UPDATE table_name SET column1 = param1;
-    COMMIT;
-END;
-$$;
-
--- Call function
-SELECT function_name(10, 'hello');
-
--- Call procedure
-CALL procedure_name(5);
-
--- Drop function/procedure
-DROP FUNCTION function_name(INTEGER, TEXT);
-DROP PROCEDURE procedure_name(INTEGER);
-```
-
-## Triggers
-
-```sql
--- Create trigger function
-CREATE OR REPLACE FUNCTION trigger_function()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Create trigger
-CREATE TRIGGER trigger_name
-    BEFORE UPDATE ON table_name
-    FOR EACH ROW
-    EXECUTE FUNCTION trigger_function();
-
--- Drop trigger
-DROP TRIGGER trigger_name ON table_name;
-```
-
-## Transactions
-
-```sql
--- Start transaction
-BEGIN;
-START TRANSACTION;
-
--- Commit transaction
-COMMIT;
-
--- Rollback transaction
-ROLLBACK;
-
--- Savepoints
-SAVEPOINT savepoint_name;
-ROLLBACK TO savepoint_name;
-RELEASE SAVEPOINT savepoint_name;
-```
-
-## User Management & Roles
-
-```sql
--- Create role/user
-CREATE ROLE role_name;
-CREATE USER username WITH PASSWORD 'password';
-
--- Create role with options
-CREATE ROLE role_name WITH LOGIN PASSWORD 'password' CREATEDB;
-
--- Grant privileges
-GRANT ALL PRIVILEGES ON DATABASE database_name TO username;
-GRANT SELECT, INSERT ON table_name TO username;
-GRANT USAGE ON SCHEMA schema_name TO username;
-
--- Grant role to user
-GRANT role_name TO username;
-
--- Show roles
-\du
-SELECT rolname FROM pg_roles;
-
--- Drop role
-DROP ROLE role_name;
-```
-
-## Backup & Restore
-
-```bash
-# Backup database
-pg_dump -U username -h hostname database_name > backup.sql
-pg_dump -U username -h hostname -Fc database_name > backup.dump  # Custom format
-
-# Backup all databases
-pg_dumpall -U username -h hostname > all_databases.sql
-
-# Restore database
-psql -U username -h hostname database_name < backup.sql
-pg_restore -U username -h hostname -d database_name backup.dump
-
-# Restore with options
-pg_restore -U username -h hostname -d database_name -c -v backup.dump
-```
-
-## Array Operations
-
-```sql
--- Create array column
-CREATE TABLE test_table (
-    id SERIAL,
-    tags TEXT[]
-);
-
--- Insert array data
-INSERT INTO test_table (tags) VALUES (ARRAY['tag1', 'tag2', 'tag3']);
-INSERT INTO test_table (tags) VALUES ('{"tag1", "tag2", "tag3"}');
-
--- Query arrays
-SELECT * FROM test_table WHERE 'tag1' = ANY(tags);
-SELECT * FROM test_table WHERE tags @> ARRAY['tag1'];        -- Contains
-SELECT * FROM test_table WHERE tags && ARRAY['tag1', 'tag2']; -- Overlaps
-
--- Array functions
-SELECT array_length(tags, 1) FROM test_table;               -- Array length
-SELECT unnest(tags) FROM test_table;                        -- Expand array to rows
-SELECT array_agg(column_name) FROM table_name;              -- Aggregate to array
-```
-
-## JSON/JSONB Operations
-
-```sql
--- Create JSON column
-CREATE TABLE test_table (
-    id SERIAL,
-    data JSONB
-);
-
--- Insert JSON data
-INSERT INTO test_table (data) VALUES ('{"name": "John", "age": 30}');
-
--- Query JSON
-SELECT data->>'name' FROM test_table;                       -- Get as text
-SELECT data->'age' FROM test_table;                         -- Get as JSON
-SELECT * FROM test_table WHERE data->>'name' = 'John';
-SELECT * FROM test_table WHERE data @> '{"age": 30}';       -- Contains
-
--- JSON path queries
-SELECT * FROM test_table WHERE data #> '{address,city}' = '"New York"';
-
--- JSON functions
-SELECT jsonb_object_keys(data) FROM test_table;             -- Get keys
-SELECT jsonb_each(data) FROM test_table;                    -- Get key-value pairs
-SELECT jsonb_set(data, '{age}', '31') FROM test_table;      -- Update value
-```
-
-## System Information
-
-```sql
--- PostgreSQL version
-SELECT version();
-
--- Current user
-SELECT current_user;
-
--- Current database
-SELECT current_database();
-
--- Show active connections
-SELECT * FROM pg_stat_activity;
-
--- Database size
-SELECT pg_size_pretty(pg_database_size(current_database()));
-
--- Table sizes
+-- Column data types and nulls
 SELECT
-    schemaname,
-    tablename,
-    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
-FROM pg_tables
-ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
+    column_name,
+    data_type,
+    is_nullable
+FROM information_schema.columns
+WHERE table_name = 'your_table';
 
--- Show configuration
-SHOW ALL;
-SHOW config_parameter;
-
--- Show installed extensions
-SELECT * FROM pg_available_extensions;
+-- Basic statistics
+SELECT
+    COUNT(*) as total_rows,
+    COUNT(DISTINCT user_id) as unique_users,
+    MIN(created_at) as earliest_date,
+    MAX(created_at) as latest_date
+FROM table_name;
 ```
 
-## Common WHERE Clauses
+### Checking for Data Quality Issues
 
 ```sql
--- Comparison operators
-WHERE column = value
-WHERE column != value (or <> value)
-WHERE column > value
+-- Find null values
+SELECT
+    COUNT(*) as total,
+    COUNT(column_name) as non_null,
+    COUNT(*) - COUNT(column_name) as null_count,
+    ROUND(100.0 * (COUNT(*) - COUNT(column_name)) / COUNT(*), 2) as null_percent
+FROM table_name;
+
+-- Find duplicates
+SELECT
+    email,
+    COUNT(*) as count
+FROM users
+GROUP BY email
+HAVING COUNT(*) > 1
+ORDER BY count DESC;
+
+-- Check value ranges
+SELECT
+    MIN(age) as min_age,
+    MAX(age) as max_age,
+    AVG(age) as avg_age,
+    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY age) as median_age
+FROM users;
+
+-- Find outliers (values beyond 3 standard deviations)
+WITH stats AS (
+    SELECT
+        AVG(value) as mean,
+        STDDEV(value) as stddev
+    FROM measurements
+)
+SELECT *
+FROM measurements, stats
+WHERE ABS(value - mean) > 3 * stddev;
+
+-- Check for distinct values (useful for categorical data)
+SELECT
+    column_name,
+    COUNT(*) as frequency,
+    ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER (), 2) as percentage
+FROM table_name
+GROUP BY column_name
+ORDER BY frequency DESC;
+```
+
+---
+
+## Filtering & Selecting Data
+
+### WHERE Clause Essentials
+
+```sql
+-- Basic comparisons
+SELECT * FROM sales WHERE amount > 1000;
+SELECT * FROM sales WHERE status = 'completed';
+SELECT * FROM sales WHERE created_at >= '2024-01-01';
+
+-- Multiple conditions
+SELECT * FROM sales
+WHERE amount > 1000
+  AND status = 'completed'
+  AND created_at >= '2024-01-01';
+
+-- OR conditions
+SELECT * FROM products
+WHERE category = 'electronics'
+   OR category = 'computers';
+
+-- IN operator (cleaner than multiple ORs)
+SELECT * FROM products
+WHERE category IN ('electronics', 'computers', 'phones');
+
+-- NOT IN
+SELECT * FROM users
+WHERE status NOT IN ('banned', 'suspended');
+
+-- BETWEEN
+SELECT * FROM sales
+WHERE created_at BETWEEN '2024-01-01' AND '2024-12-31';
 
 -- Pattern matching
-WHERE column LIKE 'pattern%'       -- Case sensitive
-WHERE column ILIKE 'pattern%'      -- Case insensitive
-WHERE column ~ 'regex_pattern'     -- Regular expression
-WHERE column ~* 'regex_pattern'    -- Case insensitive regex
-
--- Array operations
-WHERE value = ANY(array_column)
-WHERE array_column @> ARRAY[value]
-
--- JSON operations
-WHERE json_column->>'key' = 'value'
-WHERE json_column @> '{"key": "value"}'
-
--- Range operations
-WHERE column BETWEEN value1 AND value2
-WHERE column IN (value1, value2, value3)
+SELECT * FROM users WHERE email LIKE '%@gmail.com';
+SELECT * FROM users WHERE email ILIKE '%@gmail.com';  -- Case insensitive
+SELECT * FROM products WHERE name LIKE 'iPhone%';      -- Starts with
 
 -- NULL checks
-WHERE column IS NULL
-WHERE column IS NOT NULL
-WHERE column IS DISTINCT FROM value  -- NULL-safe comparison
+SELECT * FROM users WHERE phone_number IS NULL;
+SELECT * FROM users WHERE phone_number IS NOT NULL;
+
+-- Date filtering
+SELECT * FROM sales WHERE created_at > NOW() - INTERVAL '7 days';
+SELECT * FROM sales WHERE created_at > NOW() - INTERVAL '1 month';
+SELECT * FROM sales WHERE EXTRACT(YEAR FROM created_at) = 2024;
+SELECT * FROM sales WHERE DATE_TRUNC('month', created_at) = '2024-01-01';
 ```
 
-## Extensions
+---
+
+## Aggregations & GROUP BY
+
+### Basic Aggregations
 
 ```sql
--- Enable extension
-CREATE EXTENSION extension_name;
+-- Common aggregate functions
+SELECT
+    COUNT(*) as total_orders,
+    SUM(amount) as total_revenue,
+    AVG(amount) as average_order,
+    MIN(amount) as smallest_order,
+    MAX(amount) as largest_order,
+    STDDEV(amount) as std_deviation
+FROM orders;
 
--- Common extensions
-CREATE EXTENSION uuid-ossp;        -- UUID generation
-CREATE EXTENSION pg_trgm;          -- Trigram matching
-CREATE EXTENSION postgis;          -- Geographic objects
-CREATE EXTENSION hstore;           -- Key-value pairs
-CREATE EXTENSION pg_stat_statements; -- Query statistics
-
--- Use UUID
-SELECT uuid_generate_v4();
-
--- Trigram similarity
-SELECT similarity('hello', 'helo');
+-- Count distinct
+SELECT
+    COUNT(DISTINCT user_id) as unique_customers,
+    COUNT(DISTINCT product_id) as unique_products
+FROM orders;
 ```
+
+### GROUP BY for Summaries
+
+```sql
+-- Group by single column
+SELECT
+    category,
+    COUNT(*) as product_count,
+    AVG(price) as avg_price
+FROM products
+GROUP BY category
+ORDER BY product_count DESC;
+
+-- Group by multiple columns
+SELECT
+    category,
+    brand,
+    COUNT(*) as product_count,
+    AVG(price) as avg_price
+FROM products
+GROUP BY category, brand
+ORDER BY category, product_count DESC;
+
+-- Group by date parts
+SELECT
+    DATE_TRUNC('month', order_date) as month,
+    COUNT(*) as order_count,
+    SUM(amount) as monthly_revenue
+FROM orders
+GROUP BY DATE_TRUNC('month', order_date)
+ORDER BY month;
+
+-- Group by day of week
+SELECT
+    TO_CHAR(order_date, 'Day') as day_name,
+    EXTRACT(DOW FROM order_date) as day_number,
+    COUNT(*) as order_count
+FROM orders
+GROUP BY day_name, day_number
+ORDER BY day_number;
+
+-- HAVING clause (filter after grouping)
+SELECT
+    user_id,
+    COUNT(*) as order_count,
+    SUM(amount) as total_spent
+FROM orders
+GROUP BY user_id
+HAVING COUNT(*) >= 5  -- Only users with 5+ orders
+ORDER BY total_spent DESC;
+```
+
+### Advanced Aggregations
+
+```sql
+-- Percentiles
+SELECT
+    PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY salary) as q1,
+    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY salary) as median,
+    PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY salary) as q3,
+    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY salary) as p90
+FROM employees;
+
+-- Mode (most common value)
+SELECT
+    MODE() WITHIN GROUP (ORDER BY category) as most_common_category
+FROM products;
+
+-- String aggregation
+SELECT
+    user_id,
+    STRING_AGG(product_name, ', ' ORDER BY order_date) as products_ordered
+FROM orders
+GROUP BY user_id;
+
+-- Array aggregation
+SELECT
+    category,
+    ARRAY_AGG(product_name ORDER BY price DESC) as products
+FROM products
+GROUP BY category;
+
+-- Conditional aggregation (FILTER clause)
+SELECT
+    DATE_TRUNC('month', order_date) as month,
+    COUNT(*) as total_orders,
+    COUNT(*) FILTER (WHERE status = 'completed') as completed_orders,
+    COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled_orders,
+    SUM(amount) FILTER (WHERE status = 'completed') as completed_revenue
+FROM orders
+GROUP BY month
+ORDER BY month;
+
+-- Using CASE for pivoting
+SELECT
+    DATE_TRUNC('month', order_date) as month,
+    COUNT(*) as total_orders,
+    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+    SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled,
+    SUM(CASE WHEN status = 'completed' THEN amount ELSE 0 END) as revenue
+FROM orders
+GROUP BY month;
+```
+
+---
+
+## JOINs for Combining Data
+
+### Basic JOIN Types
+
+```sql
+-- INNER JOIN (only matching rows)
+SELECT
+    o.order_id,
+    o.order_date,
+    u.username,
+    u.email
+FROM orders o
+INNER JOIN users u ON o.user_id = u.id;
+
+-- LEFT JOIN (all from left, matching from right)
+SELECT
+    u.username,
+    COUNT(o.order_id) as order_count,
+    COALESCE(SUM(o.amount), 0) as total_spent
+FROM users u
+LEFT JOIN orders o ON u.id = o.user_id
+GROUP BY u.id, u.username;
+
+-- Multiple joins
+SELECT
+    o.order_id,
+    u.username,
+    p.product_name,
+    p.price
+FROM orders o
+INNER JOIN users u ON o.user_id = u.id
+INNER JOIN products p ON o.product_id = p.id;
+
+-- Self join (compare rows within same table)
+SELECT
+    e1.name as employee,
+    e2.name as manager
+FROM employees e1
+LEFT JOIN employees e2 ON e1.manager_id = e2.id;
+```
+
+### Practical JOIN Examples
+
+```sql
+-- Find customers with no orders
+SELECT u.*
+FROM users u
+LEFT JOIN orders o ON u.id = o.user_id
+WHERE o.order_id IS NULL;
+
+-- Find products never ordered
+SELECT p.*
+FROM products p
+LEFT JOIN order_items oi ON p.id = oi.product_id
+WHERE oi.order_id IS NULL;
+
+-- Customer lifetime value
+SELECT
+    u.username,
+    u.email,
+    COUNT(o.order_id) as total_orders,
+    SUM(o.amount) as lifetime_value,
+    AVG(o.amount) as avg_order_value,
+    MAX(o.order_date) as last_order_date
+FROM users u
+LEFT JOIN orders o ON u.id = o.user_id
+GROUP BY u.id, u.username, u.email
+ORDER BY lifetime_value DESC NULLS LAST;
+```
+
+---
+
+## Window Functions (Advanced Analytics)
+
+### Running Totals & Moving Averages
+
+```sql
+-- Running total
+SELECT
+    date,
+    revenue,
+    SUM(revenue) OVER (ORDER BY date) as running_total
+FROM daily_sales
+ORDER BY date;
+
+-- Moving average (7-day)
+SELECT
+    date,
+    revenue,
+    AVG(revenue) OVER (
+        ORDER BY date
+        ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+    ) as moving_avg_7day
+FROM daily_sales
+ORDER BY date;
+
+-- Year-to-date total
+SELECT
+    date,
+    revenue,
+    SUM(revenue) OVER (
+        PARTITION BY EXTRACT(YEAR FROM date)
+        ORDER BY date
+    ) as ytd_total
+FROM daily_sales
+ORDER BY date;
+```
+
+### Ranking & Row Numbers
+
+```sql
+-- Row number
+SELECT
+    product_name,
+    sales,
+    ROW_NUMBER() OVER (ORDER BY sales DESC) as rank
+FROM products;
+
+-- Rank with ties
+SELECT
+    product_name,
+    sales,
+    RANK() OVER (ORDER BY sales DESC) as rank,
+    DENSE_RANK() OVER (ORDER BY sales DESC) as dense_rank
+FROM products;
+
+-- Rank within groups
+SELECT
+    category,
+    product_name,
+    sales,
+    RANK() OVER (PARTITION BY category ORDER BY sales DESC) as rank_in_category
+FROM products;
+
+-- Top N per group
+SELECT *
+FROM (
+    SELECT
+        category,
+        product_name,
+        sales,
+        RANK() OVER (PARTITION BY category ORDER BY sales DESC) as rank
+    FROM products
+) ranked
+WHERE rank <= 3;  -- Top 3 per category
+
+-- Percentile ranking
+SELECT
+    product_name,
+    sales,
+    PERCENT_RANK() OVER (ORDER BY sales) as percentile,
+    NTILE(4) OVER (ORDER BY sales) as quartile
+FROM products;
+```
+
+### LAG & LEAD (Compare with Previous/Next Rows)
+
+```sql
+-- Compare with previous period
+SELECT
+    date,
+    revenue,
+    LAG(revenue) OVER (ORDER BY date) as prev_day_revenue,
+    revenue - LAG(revenue) OVER (ORDER BY date) as day_change,
+    ROUND(100.0 * (revenue - LAG(revenue) OVER (ORDER BY date)) /
+          LAG(revenue) OVER (ORDER BY date), 2) as percent_change
+FROM daily_sales
+ORDER BY date;
+
+-- Month-over-month growth
+SELECT
+    DATE_TRUNC('month', date) as month,
+    SUM(revenue) as monthly_revenue,
+    LAG(SUM(revenue)) OVER (ORDER BY DATE_TRUNC('month', date)) as prev_month,
+    SUM(revenue) - LAG(SUM(revenue)) OVER (ORDER BY DATE_TRUNC('month', date)) as change
+FROM daily_sales
+GROUP BY DATE_TRUNC('month', date)
+ORDER BY month;
+
+-- Next value (LEAD)
+SELECT
+    date,
+    revenue,
+    LEAD(revenue) OVER (ORDER BY date) as next_day_revenue
+FROM daily_sales;
+```
+
+### First & Last Values
+
+```sql
+-- First and last in each group
+SELECT
+    user_id,
+    order_date,
+    amount,
+    FIRST_VALUE(order_date) OVER (
+        PARTITION BY user_id ORDER BY order_date
+    ) as first_order_date,
+    LAST_VALUE(order_date) OVER (
+        PARTITION BY user_id
+        ORDER BY order_date
+        ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+    ) as last_order_date
+FROM orders;
+```
+
+---
+
+## Date & Time Operations
+
+### Date Calculations
+
+```sql
+-- Current date/time
+SELECT NOW();                           -- Current timestamp
+SELECT CURRENT_DATE;                    -- Current date
+SELECT CURRENT_TIME;                    -- Current time
+
+-- Date arithmetic
+SELECT NOW() + INTERVAL '7 days';       -- Add 7 days
+SELECT NOW() - INTERVAL '1 month';      -- Subtract 1 month
+SELECT NOW() + INTERVAL '2 years';      -- Add 2 years
+SELECT NOW() - INTERVAL '3 hours';      -- Subtract 3 hours
+
+-- Date difference
+SELECT AGE('2024-12-31', '2024-01-01');  -- Interval between dates
+SELECT '2024-12-31'::date - '2024-01-01'::date as days_between;
+
+-- Extract parts
+SELECT
+    EXTRACT(YEAR FROM order_date) as year,
+    EXTRACT(MONTH FROM order_date) as month,
+    EXTRACT(DAY FROM order_date) as day,
+    EXTRACT(DOW FROM order_date) as day_of_week,  -- 0=Sunday
+    EXTRACT(QUARTER FROM order_date) as quarter,
+    EXTRACT(WEEK FROM order_date) as week_number
+FROM orders;
+
+-- Truncate dates
+SELECT
+    DATE_TRUNC('year', order_date) as year,
+    DATE_TRUNC('month', order_date) as month,
+    DATE_TRUNC('week', order_date) as week,
+    DATE_TRUNC('day', order_date) as day
+FROM orders;
+
+-- Format dates
+SELECT
+    TO_CHAR(order_date, 'YYYY-MM-DD') as date_iso,
+    TO_CHAR(order_date, 'Mon DD, YYYY') as date_readable,
+    TO_CHAR(order_date, 'Day') as day_name,
+    TO_CHAR(order_date, 'Month') as month_name,
+    TO_CHAR(order_date, 'HH24:MI:SS') as time_24h
+FROM orders;
+```
+
+### Common Date Filters
+
+```sql
+-- Today
+SELECT * FROM orders WHERE order_date = CURRENT_DATE;
+
+-- Last 7 days
+SELECT * FROM orders WHERE order_date >= CURRENT_DATE - INTERVAL '7 days';
+
+-- Last 30 days
+SELECT * FROM orders WHERE order_date >= CURRENT_DATE - INTERVAL '30 days';
+
+-- This month
+SELECT * FROM orders
+WHERE DATE_TRUNC('month', order_date) = DATE_TRUNC('month', CURRENT_DATE);
+
+-- Last month
+SELECT * FROM orders
+WHERE DATE_TRUNC('month', order_date) = DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month');
+
+-- This year
+SELECT * FROM orders WHERE EXTRACT(YEAR FROM order_date) = EXTRACT(YEAR FROM CURRENT_DATE);
+
+-- Specific date range
+SELECT * FROM orders
+WHERE order_date BETWEEN '2024-01-01' AND '2024-12-31';
+
+-- Weekends only
+SELECT * FROM orders WHERE EXTRACT(DOW FROM order_date) IN (0, 6);
+
+-- Weekdays only
+SELECT * FROM orders WHERE EXTRACT(DOW FROM order_date) BETWEEN 1 AND 5;
+```
+
+---
+
+## Common Table Expressions (CTEs)
+
+### Basic CTEs
+
+```sql
+-- Simple CTE
+WITH high_value_customers AS (
+    SELECT
+        user_id,
+        SUM(amount) as total_spent
+    FROM orders
+    GROUP BY user_id
+    HAVING SUM(amount) > 1000
+)
+SELECT
+    u.username,
+    u.email,
+    hvc.total_spent
+FROM high_value_customers hvc
+JOIN users u ON hvc.user_id = u.id
+ORDER BY hvc.total_spent DESC;
+
+-- Multiple CTEs
+WITH
+monthly_sales AS (
+    SELECT
+        DATE_TRUNC('month', order_date) as month,
+        SUM(amount) as revenue
+    FROM orders
+    GROUP BY DATE_TRUNC('month', order_date)
+),
+sales_with_growth AS (
+    SELECT
+        month,
+        revenue,
+        LAG(revenue) OVER (ORDER BY month) as prev_month_revenue,
+        revenue - LAG(revenue) OVER (ORDER BY month) as growth
+    FROM monthly_sales
+)
+SELECT
+    TO_CHAR(month, 'YYYY-MM') as month,
+    revenue,
+    prev_month_revenue,
+    growth,
+    ROUND(100.0 * growth / NULLIF(prev_month_revenue, 0), 2) as growth_pct
+FROM sales_with_growth
+ORDER BY month;
+```
+
+### Recursive CTEs (Hierarchies)
+
+```sql
+-- Employee hierarchy
+WITH RECURSIVE org_chart AS (
+    -- Base case: top-level managers
+    SELECT
+        id,
+        name,
+        manager_id,
+        0 as level,
+        name::TEXT as path
+    FROM employees
+    WHERE manager_id IS NULL
+
+    UNION ALL
+
+    -- Recursive case: employees under managers
+    SELECT
+        e.id,
+        e.name,
+        e.manager_id,
+        oc.level + 1,
+        oc.path || ' > ' || e.name
+    FROM employees e
+    INNER JOIN org_chart oc ON e.manager_id = oc.id
+)
+SELECT * FROM org_chart ORDER BY path;
+
+-- Generate date series
+WITH RECURSIVE date_series AS (
+    SELECT '2024-01-01'::date as date
+    UNION ALL
+    SELECT date + INTERVAL '1 day'
+    FROM date_series
+    WHERE date < '2024-12-31'
+)
+SELECT date FROM date_series;
+```
+
+---
+
+## CASE Statements
+
+### Basic CASE
+
+```sql
+-- Simple categorization
+SELECT
+    product_name,
+    price,
+    CASE
+        WHEN price < 20 THEN 'Budget'
+        WHEN price BETWEEN 20 AND 100 THEN 'Mid-range'
+        ELSE 'Premium'
+    END as price_category
+FROM products;
+
+-- Multiple conditions
+SELECT
+    user_id,
+    total_orders,
+    total_spent,
+    CASE
+        WHEN total_orders >= 10 AND total_spent > 1000 THEN 'VIP'
+        WHEN total_orders >= 5 THEN 'Regular'
+        WHEN total_orders >= 1 THEN 'New'
+        ELSE 'Inactive'
+    END as customer_segment
+FROM user_stats;
+```
+
+### CASE in Aggregations
+
+```sql
+-- Pivot-style reporting
+SELECT
+    DATE_TRUNC('month', order_date) as month,
+    COUNT(*) as total_orders,
+    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+    SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled,
+    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+    SUM(CASE WHEN status = 'completed' THEN amount ELSE 0 END) as revenue
+FROM orders
+GROUP BY DATE_TRUNC('month', order_date)
+ORDER BY month;
+
+-- Conditional averages
+SELECT
+    category,
+    AVG(CASE WHEN status = 'new' THEN price END) as avg_new_price,
+    AVG(CASE WHEN status = 'used' THEN price END) as avg_used_price
+FROM products
+GROUP BY category;
+```
+
+---
+
+## Subqueries
+
+### Scalar Subqueries
+
+```sql
+-- Compare to average
+SELECT
+    product_name,
+    price,
+    (SELECT AVG(price) FROM products) as avg_price,
+    price - (SELECT AVG(price) FROM products) as diff_from_avg
+FROM products;
+```
+
+### IN / NOT IN Subqueries
+
+```sql
+-- Find users who made purchases
+SELECT * FROM users
+WHERE id IN (SELECT DISTINCT user_id FROM orders);
+
+-- Find users who never purchased
+SELECT * FROM users
+WHERE id NOT IN (SELECT DISTINCT user_id FROM orders WHERE user_id IS NOT NULL);
+```
+
+### EXISTS Subqueries
+
+```sql
+-- More efficient than IN for large datasets
+SELECT * FROM users u
+WHERE EXISTS (
+    SELECT 1 FROM orders o
+    WHERE o.user_id = u.id AND o.status = 'completed'
+);
+
+-- Users with no completed orders
+SELECT * FROM users u
+WHERE NOT EXISTS (
+    SELECT 1 FROM orders o
+    WHERE o.user_id = u.id AND o.status = 'completed'
+);
+```
+
+---
+
+## Useful String Functions
+
+```sql
+-- Concatenation
+SELECT first_name || ' ' || last_name as full_name FROM users;
+SELECT CONCAT(first_name, ' ', last_name) as full_name FROM users;
+
+-- Case conversion
+SELECT UPPER(email), LOWER(email), INITCAP(name) FROM users;
+
+-- Trimming
+SELECT TRIM(name), LTRIM(name), RTRIM(name) FROM users;
+
+-- Substring
+SELECT SUBSTRING(email FROM 1 FOR POSITION('@' IN email) - 1) as username FROM users;
+SELECT SPLIT_PART(email, '@', 1) as username FROM users;
+
+-- String length
+SELECT LENGTH(description), CHAR_LENGTH(name) FROM products;
+
+-- Replace
+SELECT REPLACE(description, 'old', 'new') FROM products;
+
+-- Pattern matching
+SELECT * FROM users WHERE email LIKE '%@gmail.com';
+SELECT * FROM users WHERE email ILIKE '%@GMAIL.COM';  -- Case insensitive
+```
+
+---
+
+## Data Export & Import
+
+### Export Data
+
+```sql
+-- Export to CSV from psql
+\copy (SELECT * FROM users WHERE created_at >= '2024-01-01') TO '/path/to/users.csv' CSV HEADER;
+
+-- Export query results
+\copy (
+    SELECT
+        u.username,
+        COUNT(o.id) as order_count,
+        SUM(o.amount) as total_spent
+    FROM users u
+    LEFT JOIN orders o ON u.id = o.user_id
+    GROUP BY u.username
+) TO '/path/to/report.csv' CSV HEADER;
+```
+
+### Import Data
+
+```sql
+-- Import CSV to existing table
+\copy table_name FROM '/path/to/data.csv' CSV HEADER;
+
+-- Import to temp table first (safer)
+CREATE TEMP TABLE temp_import (
+    column1 TEXT,
+    column2 TEXT,
+    column3 INTEGER
+);
+
+\copy temp_import FROM '/path/to/data.csv' CSV HEADER;
+
+-- Then validate and insert
+INSERT INTO main_table
+SELECT * FROM temp_import
+WHERE column3 > 0;  -- Add validation rules
+```
+
+---
+
+## Quick Tips & Best Practices
+
+### Performance
+
+```sql
+-- Use EXPLAIN to understand query performance
+EXPLAIN ANALYZE
+SELECT * FROM large_table WHERE indexed_column = 'value';
+
+-- Limit results when exploring
+SELECT * FROM large_table LIMIT 100;
+
+-- Use DISTINCT carefully (expensive operation)
+SELECT DISTINCT user_id FROM orders;  -- Fine
+SELECT DISTINCT * FROM large_table;   -- Can be slow
+
+-- Index columns used in WHERE, JOIN, and ORDER BY
+-- (Ask your DBA to create indexes)
+```
+
+### Writing Clean Queries
+
+```sql
+-- Use meaningful aliases
+SELECT
+    u.username,
+    o.order_date,
+    p.product_name
+FROM users u
+JOIN orders o ON u.id = o.user_id
+JOIN products p ON o.product_id = p.id;
+
+-- Format for readability
+SELECT
+    category,
+    COUNT(*) as product_count,
+    AVG(price) as avg_price
+FROM products
+WHERE price > 0
+GROUP BY category
+HAVING COUNT(*) >= 10
+ORDER BY product_count DESC;
+
+-- Comment your complex queries
+-- Calculate customer lifetime value by cohort
+WITH user_cohorts AS (
+    SELECT
+        user_id,
+        DATE_TRUNC('month', first_order_date) as cohort_month
+    FROM ...
+)
+SELECT ...
+```
+
+### Common Mistakes to Avoid
+
+```sql
+-- ❌ Forgetting NULLIF when dividing
+SELECT revenue / user_count FROM table;  -- Division by zero error!
+
+-- ✅ Safe division
+SELECT revenue / NULLIF(user_count, 0) FROM table;
+
+-- ❌ Not handling NULLs in calculations
+SELECT SUM(amount) FROM orders;  -- NULLs are ignored (good)
+SELECT amount * 1.1 FROM orders;  -- NULL * 1.1 = NULL (be aware)
+
+-- ✅ Handle NULLs explicitly
+SELECT COALESCE(amount, 0) * 1.1 FROM orders;
+
+-- ❌ Using SELECT * in production queries
+SELECT * FROM huge_table;  -- Slow and wasteful
+
+-- ✅ Select only what you need
+SELECT id, name, created_at FROM huge_table;
+```
+
+---
+
+## Common Analysis Patterns
+
+### Cohort Analysis
+
+```sql
+WITH user_cohorts AS (
+    SELECT
+        user_id,
+        DATE_TRUNC('month', MIN(order_date)) as cohort_month
+    FROM orders
+    GROUP BY user_id
+),
+cohort_activity AS (
+    SELECT
+        uc.cohort_month,
+        DATE_TRUNC('month', o.order_date) as activity_month,
+        COUNT(DISTINCT o.user_id) as active_users
+    FROM user_cohorts uc
+    JOIN orders o ON uc.user_id = o.user_id
+    GROUP BY uc.cohort_month, DATE_TRUNC('month', o.order_date)
+)
+SELECT
+    cohort_month,
+    activity_month,
+    active_users,
+    EXTRACT(MONTH FROM AGE(activity_month, cohort_month)) as months_since_cohort
+FROM cohort_activity
+ORDER BY cohort_month, activity_month;
+```
+
+### RFM Analysis (Recency, Frequency, Monetary)
+
+```sql
+WITH rfm AS (
+    SELECT
+        user_id,
+        CURRENT_DATE - MAX(order_date) as recency_days,
+        COUNT(*) as frequency,
+        SUM(amount) as monetary
+    FROM orders
+    WHERE status = 'completed'
+    GROUP BY user_id
+),
+rfm_scores AS (
+    SELECT
+        user_id,
+        recency_days,
+        frequency,
+        monetary,
+        NTILE(5) OVER (ORDER BY recency_days DESC) as r_score,
+        NTILE(5) OVER (ORDER BY frequency) as f_score,
+        NTILE(5) OVER (ORDER BY monetary) as m_score
+    FROM rfm
+)
+SELECT
+    user_id,
+    r_score,
+    f_score,
+    m_score,
+    r_score + f_score + m_score as rfm_total,
+    CASE
+        WHEN r_score >= 4 AND f_score >= 4 THEN 'Champions'
+        WHEN r_score >= 3 AND f_score >= 3 THEN 'Loyal'
+        WHEN r_score >= 4 AND f_score <= 2 THEN 'New'
+        WHEN r_score <= 2 THEN 'At Risk'
+        ELSE 'Regular'
+    END as segment
+FROM rfm_scores;
+```
+
+### Funnel Analysis
+
+```sql
+WITH funnel_steps AS (
+    SELECT
+        COUNT(DISTINCT CASE WHEN event = 'page_view' THEN user_id END) as step_1_viewed,
+        COUNT(DISTINCT CASE WHEN event = 'add_to_cart' THEN user_id END) as step_2_added,
+        COUNT(DISTINCT CASE WHEN event = 'checkout' THEN user_id END) as step_3_checkout,
+        COUNT(DISTINCT CASE WHEN event = 'purchase' THEN user_id END) as step_4_purchased
+    FROM events
+    WHERE event_date >= CURRENT_DATE - INTERVAL '30 days'
+)
+SELECT
+    step_1_viewed,
+    step_2_added,
+    ROUND(100.0 * step_2_added / NULLIF(step_1_viewed, 0), 2) as view_to_cart_rate,
+    step_3_checkout,
+    ROUND(100.0 * step_3_checkout / NULLIF(step_2_added, 0), 2) as cart_to_checkout_rate,
+    step_4_purchased,
+    ROUND(100.0 * step_4_purchased / NULLIF(step_3_checkout, 0), 2) as checkout_to_purchase_rate,
+    ROUND(100.0 * step_4_purchased / NULLIF(step_1_viewed, 0), 2) as overall_conversion_rate
+FROM funnel_steps;
+```
+
+---
+
+That's it! Focus on mastering these essentials and you'll handle 95% of your data analysis work in PostgreSQL. 🎯
