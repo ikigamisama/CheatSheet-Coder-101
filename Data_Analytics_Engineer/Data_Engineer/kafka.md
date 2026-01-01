@@ -1,4 +1,26 @@
-# Kafka in Python Cheat Sheet
+# Kafka in Python - Comprehensive Documentation
+
+## What is Apache Kafka?
+
+**Definition:** Apache Kafka is a distributed event streaming platform designed to handle high-throughput, fault-tolerant, real-time data feeds. It acts as a message broker that enables applications to publish, subscribe to, store, and process streams of records in a distributed manner.
+
+**Core Purpose:**
+
+- **Decouple systems**: Enables independent scaling of data producers and consumers
+- **Real-time processing**: Handles streaming data with low latency
+- **Durability**: Persists messages to disk for fault tolerance
+- **Scalability**: Distributes data across multiple servers (brokers)
+
+**Key Concepts:**
+
+- **Topic**: A category or feed name to which messages are published
+- **Partition**: Ordered, immutable sequence of messages within a topic
+- **Producer**: Application that publishes messages to Kafka topics
+- **Consumer**: Application that subscribes to topics and processes messages
+- **Broker**: Kafka server that stores and serves data
+- **Consumer Group**: Set of consumers working together to consume a topic
+
+---
 
 ## Installation
 
@@ -6,7 +28,22 @@
 pip install kafka-python
 ```
 
+**Purpose:** Install the Python client library for interacting with Apache Kafka clusters.
+
+---
+
 ## Basic Producer
+
+### What is a Producer?
+
+**Definition:** A Kafka Producer is a client application that publishes (writes) messages to Kafka topics. It determines which partition to send messages to and handles batching, compression, and retries.
+
+**Purpose:**
+
+- Send data from applications to Kafka topics
+- Handle message serialization (converting objects to bytes)
+- Manage connection pooling and network failures
+- Optimize throughput through batching
 
 ### Simple Producer
 
@@ -28,6 +65,13 @@ producer.flush()
 producer.close()
 ```
 
+**Parameters Explained:**
+
+- `bootstrap_servers`: List of Kafka broker addresses for initial connection
+- `value_serializer`: Function to convert message values to bytes
+- `flush()`: Blocks until all pending messages are sent
+- `close()`: Closes producer and releases resources
+
 ### Producer with Key
 
 ```python
@@ -39,6 +83,12 @@ producer = KafkaProducer(
 
 producer.send('my-topic', key='my-key', value={'data': 'example'})
 ```
+
+**Purpose of Message Keys:**
+
+- **Partitioning**: Messages with the same key go to the same partition
+- **Ordering**: Guarantees message order within a partition
+- **Co-location**: Related messages are stored together
 
 ### Producer with Callback
 
@@ -54,7 +104,28 @@ future.add_callback(on_success)
 future.add_errback(on_error)
 ```
 
+**Purpose:** Handle asynchronous send results for monitoring and error handling.
+
+**Metadata Attributes:**
+
+- `topic`: The topic name where message was sent
+- `partition`: Partition number (0-indexed)
+- `offset`: Position of message in the partition
+
+---
+
 ## Basic Consumer
+
+### What is a Consumer?
+
+**Definition:** A Kafka Consumer is a client application that subscribes to (reads) messages from Kafka topics. It maintains an offset (position) in each partition to track which messages have been processed.
+
+**Purpose:**
+
+- Read messages from Kafka topics
+- Handle message deserialization (converting bytes to objects)
+- Manage offset tracking and commits
+- Enable parallel processing through consumer groups
 
 ### Simple Consumer
 
@@ -79,6 +150,25 @@ for message in consumer:
     print(f"Value: {message.value}")
 ```
 
+**Parameters Explained:**
+
+- `auto_offset_reset`: Where to start reading when no offset exists
+  - `'earliest'`: Start from beginning of partition
+  - `'latest'`: Start from newest messages
+  - `'none'`: Throw exception if no offset found
+- `enable_auto_commit`: Automatically commit offsets periodically
+- `group_id`: Consumer group name for coordinated consumption
+- `value_deserializer`: Function to convert message bytes to objects
+
+**Message Attributes:**
+
+- `topic`: Topic name
+- `partition`: Partition number
+- `offset`: Message position in partition
+- `key`: Message key (optional)
+- `value`: Message payload
+- `timestamp`: When message was produced
+
 ### Consumer with Multiple Topics
 
 ```python
@@ -88,6 +178,8 @@ consumer = KafkaConsumer(
     group_id='my-group'
 )
 ```
+
+**Purpose:** Subscribe to multiple topics simultaneously for consolidated processing.
 
 ### Manual Offset Commit
 
@@ -106,6 +198,16 @@ for message in consumer:
     consumer.commit()
 ```
 
+**Purpose:** Provides control over when offsets are committed, ensuring "at-least-once" or "exactly-once" processing semantics.
+
+**When to use:**
+
+- Need to ensure message processing before committing
+- Implementing transactional processing
+- Custom error handling and retry logic
+
+---
+
 ## Configuration Options
 
 ### Producer Configuration
@@ -122,6 +224,42 @@ producer = KafkaProducer(
     max_in_flight_requests_per_connection=5
 )
 ```
+
+**Configuration Parameters Explained:**
+
+- **acks** (Acknowledgment Level):
+
+  - `0`: No acknowledgment (fastest, least safe)
+  - `1`: Leader broker acknowledges (balanced)
+  - `'all'`: All replicas acknowledge (slowest, most safe)
+  - **Purpose**: Controls durability vs. speed trade-off
+
+- **retries**: Number of retry attempts for failed sends
+
+  - **Purpose**: Handles transient network failures
+
+- **batch_size**: Maximum bytes to batch before sending (default: 16384)
+
+  - **Purpose**: Improves throughput by grouping messages
+
+- **linger_ms**: Time to wait before sending batch (default: 0)
+
+  - **Purpose**: Allows more messages to accumulate in batch
+
+- **buffer_memory**: Total memory for buffering (default: 33554432 = 32MB)
+
+  - **Purpose**: Prevents OutOfMemory when producers are faster than network
+
+- **compression_type**: Compress messages to reduce network bandwidth
+
+  - `'gzip'`: Best compression, slower
+  - `'snappy'`: Balanced compression/speed
+  - `'lz4'`: Fast compression
+  - `'zstd'`: Modern, efficient compression
+
+- **max_in_flight_requests_per_connection**: Max unacknowledged requests per connection
+  - **Purpose**: Controls throughput vs. ordering trade-off
+  - Set to 1 for strict ordering
 
 ### Consumer Configuration
 
@@ -140,6 +278,36 @@ consumer = KafkaConsumer(
 )
 ```
 
+**Configuration Parameters Explained:**
+
+- **group_id**: Consumer group identifier
+
+  - **Purpose**: Enables load balancing and fault tolerance
+  - Consumers in same group share partition consumption
+
+- **auto_commit_interval_ms**: Frequency of automatic offset commits (default: 5000)
+
+  - **Purpose**: Controls commit frequency vs. duplicate processing risk
+
+- **max_poll_records**: Maximum records returned per poll() call (default: 500)
+
+  - **Purpose**: Controls memory usage and processing batch size
+
+- **max_poll_interval_ms**: Maximum time between poll() calls (default: 300000 = 5 min)
+
+  - **Purpose**: Prevents consumer being marked as dead during slow processing
+
+- **session_timeout_ms**: Maximum time between heartbeats (default: 10000 = 10 sec)
+
+  - **Purpose**: Controls failure detection speed
+  - Lower = faster detection, but more sensitive to GC pauses
+
+- **heartbeat_interval_ms**: Frequency of heartbeat to coordinator (default: 3000 = 3 sec)
+  - **Purpose**: Keeps consumer alive in group
+  - Should be lower than session_timeout_ms / 3
+
+---
+
 ## Advanced Operations
 
 ### Seek to Specific Offset
@@ -152,12 +320,26 @@ consumer.assign([tp])
 consumer.seek(tp, 10)  # Seek to offset 10
 ```
 
+**Purpose:** Manually control consumer position for replay or skipping messages.
+
+**Use Cases:**
+
+- Reprocessing historical data
+- Skipping corrupted messages
+- Time-travel debugging
+- Implementing custom offset management
+
 ### Seek to Beginning/End
 
 ```python
 consumer.seek_to_beginning()
 consumer.seek_to_end()
 ```
+
+**Purpose:**
+
+- `seek_to_beginning()`: Reprocess all available messages
+- `seek_to_end()`: Skip to latest messages (ignore backlog)
 
 ### Get Topic Partitions
 
@@ -166,6 +348,8 @@ partitions = consumer.partitions_for_topic('my-topic')
 print(f"Partitions: {partitions}")
 ```
 
+**Purpose:** Discover partition topology for manual partition assignment or monitoring.
+
 ### Get Current Position
 
 ```python
@@ -173,6 +357,8 @@ tp = TopicPartition('my-topic', 0)
 position = consumer.position(tp)
 print(f"Current position: {position}")
 ```
+
+**Purpose:** Monitor consumer progress and calculate lag (difference between current position and latest offset).
 
 ### Pause and Resume
 
@@ -184,7 +370,23 @@ consumer.pause(*consumer.assignment())
 consumer.resume(*consumer.assignment())
 ```
 
+**Purpose:** Temporarily stop consuming without closing consumer.
+
+**Use Cases:**
+
+- Backpressure handling (slow downstream system)
+- Maintenance windows
+- Dynamic rate limiting
+
+---
+
 ## Admin Operations
+
+### What are Admin Operations?
+
+**Definition:** Administrative operations for managing Kafka cluster resources like topics, partitions, and configurations programmatically.
+
+**Purpose:** Automate infrastructure management and enable self-service topic creation.
 
 ### Create Topics
 
@@ -203,11 +405,24 @@ admin.create_topics([topic])
 admin.close()
 ```
 
+**Parameters Explained:**
+
+- `num_partitions`: Number of partitions (parallelism level)
+- `replication_factor`: Number of copies across brokers (fault tolerance)
+
+**Best Practices:**
+
+- More partitions = higher throughput but more overhead
+- Replication factor ≥ 3 for production
+- Consider retention policies and compaction
+
 ### Delete Topics
 
 ```python
 admin.delete_topics(['topic-to-delete'])
 ```
+
+**Purpose:** Remove topics and all associated data. Use with caution in production.
 
 ### List Topics
 
@@ -216,7 +431,15 @@ topics = admin.list_topics()
 print(f"Available topics: {topics}")
 ```
 
+**Purpose:** Discover available topics for monitoring or dynamic subscription.
+
+---
+
 ## Error Handling
+
+### Why Error Handling Matters
+
+**Purpose:** Kafka operations involve network I/O and can fail due to broker issues, network problems, or configuration errors. Proper error handling ensures system reliability.
 
 ### Producer Error Handling
 
@@ -229,6 +452,12 @@ try:
 except KafkaError as e:
     print(f"Failed to send message: {e}")
 ```
+
+**Common Errors:**
+
+- `KafkaTimeoutError`: Broker unreachable or overloaded
+- `MessageSizeTooLargeError`: Message exceeds broker limits
+- `TopicAuthorizationFailedError`: Insufficient permissions
 
 ### Consumer Error Handling
 
@@ -247,6 +476,15 @@ except KafkaError as e:
     print(f"Kafka error: {e}")
 ```
 
+**Best Practices:**
+
+- Separate Kafka errors from processing errors
+- Implement dead letter queues for poison messages
+- Log errors with context (topic, partition, offset)
+- Monitor error rates
+
+---
+
 ## Common Patterns
 
 ### Batch Processing
@@ -262,6 +500,20 @@ for message in consumer:
         consumer.commit()
 ```
 
+**Purpose:** Improve throughput by processing messages in groups.
+
+**Benefits:**
+
+- Amortize network/database overhead
+- Enable bulk operations (batch inserts)
+- Reduce per-message processing cost
+
+**Trade-offs:**
+
+- Increased latency
+- Higher memory usage
+- Risk of data loss if process crashes before commit
+
 ### Asynchronous Producer
 
 ```python
@@ -276,6 +528,14 @@ for i in range(1000):
     executor.submit(send_async, producer, 'my-topic', {'id': i})
 ```
 
+**Purpose:** Maximize producer throughput by parallelizing sends.
+
+**Use Cases:**
+
+- High-volume data ingestion
+- Non-blocking application code
+- CPU-bound serialization
+
 ### Context Manager
 
 ```python
@@ -286,7 +546,15 @@ with closing(KafkaProducer(bootstrap_servers=['localhost:9092'])) as producer:
     producer.flush()
 ```
 
+**Purpose:** Ensure proper resource cleanup (flush pending messages, close connections).
+
+---
+
 ## Security (SSL/SASL)
+
+### Why Security Matters
+
+**Purpose:** Protect data in transit and authenticate clients to prevent unauthorized access.
 
 ### SSL Configuration
 
@@ -300,6 +568,14 @@ producer = KafkaProducer(
 )
 ```
 
+**Purpose:** Encrypt communication between client and broker using TLS/SSL.
+
+**Certificates Explained:**
+
+- `ssl_cafile`: Certificate Authority (validates broker identity)
+- `ssl_certfile`: Client certificate (proves client identity)
+- `ssl_keyfile`: Private key for client certificate
+
 ### SASL Authentication
 
 ```python
@@ -312,21 +588,83 @@ producer = KafkaProducer(
 )
 ```
 
+**Purpose:** Authenticate clients using username/password or Kerberos.
+
+**SASL Mechanisms:**
+
+- `PLAIN`: Simple username/password (use with SSL)
+- `SCRAM-SHA-256/512`: Secure password-based authentication
+- `GSSAPI`: Kerberos authentication
+- `OAUTHBEARER`: OAuth 2.0 token-based authentication
+
+---
+
 ## Performance Tips
 
-1. Use batch sending for producers with appropriate `linger_ms` and `batch_size`
-2. Enable compression (`gzip`, `snappy`, `lz4`, or `zstd`)
-3. Adjust `max_poll_records` for consumers based on processing speed
-4. Use appropriate `acks` setting (0 for speed, 'all' for durability)
-5. Partition your topics for parallelism
-6. Use consumer groups for load distribution
-7. Monitor lag and adjust consumer count accordingly
+### Optimization Strategies
+
+1. **Use batch sending for producers with appropriate `linger_ms` and `batch_size`**
+
+   - **Purpose**: Reduce network overhead by grouping messages
+   - **Recommendation**: Set `linger_ms=10-50` and `batch_size=16384-131072`
+
+2. **Enable compression (`gzip`, `snappy`, `lz4`, or `zstd`)**
+
+   - **Purpose**: Reduce network bandwidth and broker storage
+   - **Recommendation**: Use `snappy` for balanced performance, `zstd` for best compression
+
+3. **Adjust `max_poll_records` for consumers based on processing speed**
+
+   - **Purpose**: Prevent consumer timeout from slow processing
+   - **Recommendation**: Lower for slow processing, higher for fast processing
+
+4. **Use appropriate `acks` setting (0 for speed, 'all' for durability)**
+
+   - **Purpose**: Balance throughput vs. data safety
+   - **Recommendation**: Use `acks='all'` with `min.insync.replicas=2` for critical data
+
+5. **Partition your topics for parallelism**
+
+   - **Purpose**: Enable horizontal scaling of consumers
+   - **Recommendation**: Partitions = number of parallel consumers needed
+
+6. **Use consumer groups for load distribution**
+
+   - **Purpose**: Distribute partition consumption across multiple consumers
+   - **Recommendation**: Max consumers = number of partitions
+
+7. **Monitor lag and adjust consumer count accordingly**
+   - **Purpose**: Ensure consumers keep up with producers
+   - **Recommendation**: Add consumers when lag consistently increases
+
+---
 
 ## Top 5 Kafka Use Cases
 
 ### 1. Data Streaming
 
-Real-time data streaming from multiple sources (social media, IoT devices, applications) through Kafka topics to processing engines like Spark Streaming and storage systems.
+**Definition:** Real-time data streaming aggregates information from multiple sources (social media, IoT devices, applications) through Kafka topics to processing engines like Spark Streaming and storage systems.
+
+**Purpose:**
+
+- Unify disparate data sources into a single pipeline
+- Enable real-time analytics and decision-making
+- Buffer high-volume data streams
+- Decouple data producers from consumers
+
+**Key Benefits:**
+
+- **Scalability**: Handle millions of events per second
+- **Fault Tolerance**: No data loss even if processing fails
+- **Flexibility**: Multiple consumers can process same stream differently
+- **Real-time**: Sub-second latency for time-sensitive applications
+
+**Common Scenarios:**
+
+- IoT sensor data aggregation
+- Social media feed processing
+- Financial market data distribution
+- Application event streaming
 
 ```python
 # Example: Multi-Source IoT & Social Media Stream Aggregator
@@ -554,9 +892,36 @@ if __name__ == "__main__":
 
 ```
 
+---
+
 ### 2. Log Aggregation
 
-Collecting logs from multiple services and applications, centralizing them through Kafka, and forwarding to processing systems like Spark and analytics platforms.
+**Definition:** Collecting logs from multiple services and applications, centralizing them through Kafka, and forwarding to processing systems like Spark and analytics platforms (ELK Stack, Splunk).
+
+**Purpose:**
+
+- Centralize distributed logs for easier debugging
+- Enable real-time log analysis and alerting
+- Reduce storage costs through efficient compression
+- Provide audit trail for compliance
+
+**Key Benefits:**
+
+- **Unified View**: See logs from all services in one place
+- **Real-time Alerting**: Detect and respond to issues immediately
+- **Scalability**: Handle terabytes of logs per day
+- **Decoupling**: Log producers don't depend on log processors
+
+**Common Scenarios:**
+
+- Microservices log aggregation
+- Error pattern detection
+- Security event monitoring
+- Performance metrics collection
+
+**Architecture:**
+
+- Applications → Kafka Topics (by log level) → Log Analyzer → ELK/Splunk
 
 ```python
 # Example: Enterprise Log Aggregation with ELK Stack Integration
@@ -683,9 +1048,40 @@ analyzer = LogAnalyzer(['localhost:9092'])
 analyzer.analyze_logs()
 ```
 
+---
+
 ### 3. Message Queuing
 
-Decoupling producers and consumers with Kafka as a message queue, enabling multiple producers to send messages and multiple consumers to process them independently.
+**Definition:** Using Kafka as a distributed message queue to decouple producers and consumers, enabling multiple producers to send messages and multiple consumers to process them independently with guaranteed delivery.
+
+**Purpose:**
+
+- Decouple services for independent scaling
+- Ensure reliable message delivery with retries
+- Enable asynchronous processing
+- Load balance work across multiple workers
+
+**Key Benefits:**
+
+- **Reliability**: Messages persist until successfully processed
+- **Ordering**: Maintain message order within partitions
+- **Priority Queues**: Route high-priority tasks to dedicated topics
+- **Dead Letter Queues**: Isolate failing messages for investigation
+
+**Common Scenarios:**
+
+- Background job processing
+- Email/notification delivery
+- Payment processing
+- Report generation
+- Data import/export tasks
+
+**Features:**
+
+- Priority-based task routing
+- Automatic retry with exponential backoff
+- Dead letter queue for failed messages
+- Multiple workers for parallel processing
 
 ```python
 # Example: Distributed Task Queue with Priority & Dead Letter Queue
@@ -873,9 +1269,44 @@ for worker_id in range(5):
     workers.append(thread)
 ```
 
+---
+
 ### 4. Web Activity Tracking
 
-Tracking user activities on websites and applications, sending events through Kafka to Spark for real-time analysis and processing.
+**Definition:** Tracking user activities on websites and applications, sending events through Kafka to analytics engines like Spark for real-time analysis, personalization, and reporting.
+
+**Purpose:**
+
+- Understand user behavior in real-time
+- Enable personalized user experiences
+- Detect anomalies and fraud
+- Optimize conversion funnels
+- Measure marketing campaign effectiveness
+
+**Key Benefits:**
+
+- **Real-time**: Respond to user actions immediately
+- **Scalability**: Handle millions of events per second
+- **Flexibility**: Multiple analytics pipelines from same data
+- **Historical**: Store events for long-term analysis
+
+**Common Scenarios:**
+
+- Page view tracking
+- Click stream analysis
+- E-commerce conversion funnel
+- A/B testing
+- User session analysis
+- Churn prediction
+- Recommendation engines
+
+**Tracked Events:**
+
+- Page views, clicks, form submissions
+- Purchases and cart additions
+- Video plays, scrolls, hovers
+- Search queries
+- User authentication events
 
 ```python
 # Example: Real-time User Behavior Analytics Pipeline
@@ -1121,9 +1552,47 @@ engine = RealTimeAnalyticsEngine(['localhost:9092'])
 engine.process_events()
 ```
 
+---
+
 ### 5. Data Replication
 
-Replicating data between different databases, data centers, or systems through Kafka Connect, ensuring data consistency across distributed environments.
+**Definition:** Replicating data between different databases, data centers, or systems through Kafka Connect or custom Change Data Capture (CDC), ensuring data consistency across distributed environments.
+
+**Purpose:**
+
+- Maintain data consistency across regions
+- Enable disaster recovery
+- Support read scaling with replicas
+- Facilitate data migration
+- Implement CQRS (Command Query Responsibility Segregation)
+
+**Key Benefits:**
+
+- **Eventually Consistent**: Changes propagate to all replicas
+- **Conflict Resolution**: Handle concurrent updates intelligently
+- **Audit Trail**: Track all data changes
+- **Zero Downtime**: Replicate without downtime
+
+**Common Scenarios:**
+
+- Multi-region database synchronization
+- Database migration (MySQL → PostgreSQL)
+- Data warehouse ETL
+- Cache invalidation
+- Microservices data sharing
+- GDPR data replication
+
+**Replication Strategies:**
+
+- **Last-Write-Wins**: Use timestamps to resolve conflicts
+- **Field-Level Merge**: Merge non-conflicting fields
+- **Custom Business Logic**: Application-specific conflict resolution
+- **Manual Resolution**: Queue conflicts for human review
+
+**Architecture:**
+
+- Source DB → CDC Producer → Kafka → Replication Consumer → Target DB
+- Supports bidirectional replication with conflict detection
 
 ```python
 # Example: Multi-Region Database Replication with Conflict Resolution
@@ -1479,14 +1948,135 @@ for i in range(50):
 threads = replicator.start_all_replicators()
 ```
 
-## Common Issues
+---
 
-**Connection Issues**: Check bootstrap_servers and network connectivity
+## Common Issues and Troubleshooting
 
-**Offset Issues**: Use `auto_offset_reset` to handle missing offsets
+### Connection Issues
 
-**Timeout Issues**: Increase `request_timeout_ms` and `session_timeout_ms`
+**Symptoms**: Cannot connect to Kafka brokers, timeout errors
 
-**Memory Issues**: Adjust `buffer_memory` for producers and `max_poll_records` for consumers
+**Solutions**:
 
-**Rebalancing**: Tune `session_timeout_ms` and `heartbeat_interval_ms` to reduce rebalances
+- Check `bootstrap_servers` format: `['host1:9092', 'host2:9092']`
+- Verify network connectivity: `telnet hostname 9092`
+- Check firewall rules and security groups
+- Ensure broker is running: `ps aux | grep kafka`
+
+### Offset Issues
+
+**Symptoms**: Consumer skips messages or re-processes old messages
+
+**Solutions**:
+
+- Use `auto_offset_reset='earliest'` to handle missing offsets
+- Check offset commits are working: `enable_auto_commit=True`
+- Verify consumer group has correct offsets
+- Reset offsets if corrupted: `kafka-consumer-groups --reset-offsets`
+
+### Timeout Issues
+
+**Symptoms**: Producer send timeouts, consumer poll timeouts
+
+**Solutions**:
+
+- Increase `request_timeout_ms` (default: 30000)
+- Increase `session_timeout_ms` for consumers (default: 10000)
+- Check broker health and resource usage
+- Reduce `max_poll_records` if processing is slow
+- Increase broker capacity if overloaded
+
+### Memory Issues
+
+**Symptoms**: OutOfMemory errors, garbage collection pauses
+
+**Solutions**:
+
+- Adjust producer `buffer_memory` (default: 33554432 = 32MB)
+- Reduce consumer `max_poll_records` (default: 500)
+- Enable compression to reduce memory usage
+- Increase JVM heap size for application
+- Monitor memory usage and tune accordingly
+
+### Rebalancing Issues
+
+**Symptoms**: Frequent consumer rebalances, processing interruptions
+
+**Solutions**:
+
+- Tune `session_timeout_ms` (higher = less sensitive to delays)
+- Tune `heartbeat_interval_ms` (lower = more frequent heartbeats)
+- Reduce `max_poll_interval_ms` if processing is fast
+- Increase `max_poll_interval_ms` if processing is slow
+- Avoid long-running processing in poll loop
+- Monitor rebalance frequency and duration
+
+### Message Loss
+
+**Symptoms**: Messages appear to be missing
+
+**Solutions**:
+
+- Use `acks='all'` for producers
+- Set `min.insync.replicas=2` on broker
+- Enable `enable_idempotence=True` for producers
+- Commit offsets only after successful processing
+- Verify replication factor ≥ 2
+
+### Duplicate Messages
+
+**Symptoms**: Same message processed multiple times
+
+**Solutions**:
+
+- Implement idempotent processing (track message IDs)
+- Use manual offset commits after processing
+- Enable producer idempotence: `enable_idempotence=True`
+- Set `max_in_flight_requests_per_connection=1` for ordering
+
+---
+
+## Glossary
+
+**Broker**: A Kafka server that stores and serves data
+
+**Topic**: A category/feed name for messages (like a database table)
+
+**Partition**: An ordered, immutable sequence of messages (like a log file)
+
+**Offset**: A unique identifier for each message within a partition
+
+**Producer**: Client that publishes messages to topics
+
+**Consumer**: Client that subscribes to topics and processes messages
+
+**Consumer Group**: Set of consumers that coordinate to consume a topic
+
+**Replication**: Copying partitions across multiple brokers for fault tolerance
+
+**Leader**: The broker responsible for all reads/writes for a partition
+
+**Follower**: Broker that replicates the leader's partition data
+
+**ISR (In-Sync Replicas)**: Replicas that are caught up with the leader
+
+**Lag**: Difference between latest offset and consumer's current position
+
+**Retention**: How long Kafka keeps messages (time or size-based)
+
+**Compaction**: Keeping only the latest value for each key
+
+**Coordinator**: Broker that manages consumer group membership
+
+**Rebalance**: Redistribution of partitions among consumers in a group
+
+---
+
+## Additional Resources
+
+- **Official Documentation**: https://kafka.apache.org/documentation/
+- **kafka-python Docs**: https://kafka-python.readthedocs.io/
+- **Confluent Platform**: https://docs.confluent.io/
+- **Best Practices**: https://kafka.apache.org/documentation/#bestpractices
+
+---

@@ -1,6 +1,6 @@
 # PostgreSQL for Data Analysis - Essential Cheatsheet
 
-## Getting Started
+## 🚀 Getting Started
 
 ### Connect to Database
 
@@ -32,7 +32,7 @@ psql -U username -W -d database_name
 
 ---
 
-## Exploring Data
+## 🔍 Exploring Data
 
 ### Quick Data Overview
 
@@ -117,7 +117,7 @@ ORDER BY frequency DESC;
 
 ---
 
-## Filtering & Selecting Data
+## 🎯 Filtering & Selecting Data
 
 ### WHERE Clause Essentials
 
@@ -168,7 +168,7 @@ SELECT * FROM sales WHERE DATE_TRUNC('month', created_at) = '2024-01-01';
 
 ---
 
-## Aggregations & GROUP BY
+## 📊 Aggregations & GROUP BY
 
 ### Basic Aggregations
 
@@ -295,7 +295,7 @@ GROUP BY month;
 
 ---
 
-## JOINs for Combining Data
+## 🔗 JOINs for Combining Data
 
 ### Basic JOIN Types
 
@@ -367,7 +367,7 @@ ORDER BY lifetime_value DESC NULLS LAST;
 
 ---
 
-## Window Functions (Advanced Analytics)
+## 📈 Window Functions (Advanced Analytics)
 
 ### Running Totals & Moving Averages
 
@@ -503,7 +503,7 @@ FROM orders;
 
 ---
 
-## Date & Time Operations
+## 📅 Date & Time Operations
 
 ### Date Calculations
 
@@ -587,7 +587,7 @@ SELECT * FROM orders WHERE EXTRACT(DOW FROM order_date) BETWEEN 1 AND 5;
 
 ---
 
-## Common Table Expressions (CTEs)
+## 🔄 Common Table Expressions (CTEs)
 
 ### Basic CTEs
 
@@ -678,7 +678,7 @@ SELECT date FROM date_series;
 
 ---
 
-## CASE Statements
+## 🔀 CASE Statements
 
 ### Basic CASE
 
@@ -734,7 +734,7 @@ GROUP BY category;
 
 ---
 
-## Subqueries
+## 🔎 Subqueries
 
 ### Scalar Subqueries
 
@@ -780,7 +780,7 @@ WHERE NOT EXISTS (
 
 ---
 
-## Useful String Functions
+## 🔤 Useful String Functions
 
 ```sql
 -- Concatenation
@@ -810,7 +810,7 @@ SELECT * FROM users WHERE email ILIKE '%@GMAIL.COM';  -- Case insensitive
 
 ---
 
-## Data Export & Import
+## 💾 Data Export & Import
 
 ### Export Data
 
@@ -853,7 +853,7 @@ WHERE column3 > 0;  -- Add validation rules
 
 ---
 
-## Quick Tips & Best Practices
+## 💡 Quick Tips & Best Practices
 
 ### Performance
 
@@ -932,7 +932,7 @@ SELECT id, name, created_at FROM huge_table;
 
 ---
 
-## Common Analysis Patterns
+## 📋 Common Analysis Patterns
 
 ### Cohort Analysis
 

@@ -1,6 +1,6 @@
 # MySQL Cheatsheet for Data/Analytics Engineers
 
-## Connection & Authentication
+## 🔌 Connection & Authentication
 
 ```sql
 -- Connect to MySQL
@@ -15,7 +15,7 @@ mysql -h hostname -P 3306 -u username -p
 EXIT; or QUIT; or \q
 ```
 
-## Database Operations
+## 🗄️ Database Operations
 
 ```sql
 -- Show all databases
@@ -36,7 +36,7 @@ DROP DATABASE IF EXISTS database_name;
 SELECT DATABASE();
 ```
 
-## Table Operations
+## 📊 Table Operations
 
 ```sql
 -- Show all tables
@@ -70,7 +70,7 @@ ALTER TABLE old_name RENAME TO new_name;
 TRUNCATE TABLE table_name;
 ```
 
-## Column Operations
+## 🔧 Column Operations
 
 ```sql
 -- Add column
@@ -91,7 +91,7 @@ ALTER TABLE table_name ADD PRIMARY KEY (column_name);
 ALTER TABLE table_name DROP PRIMARY KEY;
 ```
 
-## Data Types
+## 📝 Data Types
 
 ```sql
 -- Numeric
@@ -117,7 +117,7 @@ YEAR                -- YYYY
 JSON
 ```
 
-## CRUD Operations
+## ✏️ CRUD Operations
 
 ### INSERT
 
@@ -194,7 +194,7 @@ JOIN table2 t2 ON t1.id = t2.id
 WHERE condition;
 ```
 
-## Joins
+## 🔗 Joins
 
 ```sql
 -- INNER JOIN
@@ -223,7 +223,7 @@ FROM employees a
 LEFT JOIN employees b ON a.manager_id = b.id;
 ```
 
-## Window Functions (MySQL 8.0+) - Essential for Analytics
+## 🪟 Window Functions
 
 ```sql
 -- ROW_NUMBER - Assign unique row numbers
@@ -278,7 +278,7 @@ SELECT
 FROM product_prices;
 ```
 
-## Advanced Aggregations for Analytics
+## 📈 Advanced Aggregations
 
 ```sql
 -- ROLLUP - Generate subtotals and grand totals
@@ -323,7 +323,7 @@ FROM employees e1
 GROUP BY department;
 ```
 
-## Common Table Expressions (CTEs) - Clean Complex Queries
+## 🔄 CTEs - Clean Complex Queries
 
 ```sql
 -- Basic CTE
@@ -373,7 +373,7 @@ WITH RECURSIVE employee_hierarchy AS (
 SELECT * FROM employee_hierarchy ORDER BY level, name;
 ```
 
-## Data Quality Checks
+## ✅ Data Quality Checks
 
 ```sql
 -- Check for duplicates
@@ -422,7 +422,7 @@ WHERE m.value < (q.q1 - 1.5 * (q.q3 - q.q1))
    OR m.value > (q.q3 + 1.5 * (q.q3 - q.q1));
 ```
 
-## Data Profiling & Exploration
+## 🔍 Data Profiling
 
 ```sql
 -- Get table statistics
@@ -469,7 +469,7 @@ SELECT 'column2', COUNT(DISTINCT column2), COUNT(*),
 FROM table_name;
 ```
 
-## Date/Time Analytics
+## 📅 Date/Time Analytics
 
 ```sql
 -- Date dimension generation
@@ -518,7 +518,7 @@ FROM sales
 GROUP BY DATE_FORMAT(date, '%Y-%m');
 ```
 
-## Performance Optimization for Analytics
+## ⚡ Performance Optimization for Analytics
 
 ```sql
 -- EXPLAIN - Analyze query execution plan
@@ -559,7 +559,7 @@ CREATE INDEX idx_composite ON table_name (frequently_filtered_col, join_col, sor
 CREATE INDEX idx_covering ON orders (customer_id, order_date, status, amount);
 ```
 
-## Sampling Techniques
+## 🎲 Sampling Techniques
 
 ```sql
 -- Random sampling (percentage)
@@ -579,7 +579,7 @@ SELECT * FROM (
 WHERE rn <= 10;  -- 10 samples per category
 ```
 
-## String Functions for Data Cleaning
+## 🧹 String Functions for Data Cleaning
 
 ```sql
 -- Clean and standardize text
@@ -619,7 +619,7 @@ WHERE a.id < b.id
 HAVING similarity_score < 5;
 ```
 
-## Materialized Views (using tables)
+## 💾 Materialized Views (using tables)
 
 ```sql
 -- Create summary table for fast analytics
@@ -651,7 +651,7 @@ WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
 GROUP BY DATE(order_date), product_id;
 ```
 
-## Data Export for Analysis Tools
+## 📤 Data Export for Analysis Tools
 
 ```sql
 -- Export to CSV
@@ -671,7 +671,7 @@ FIELDS TERMINATED BY '\t'
 LINES TERMINATED BY '\n';
 ```
 
-## Indexes (Analytics-Focused)
+## 🔖 Indexes (Analytics-Focused)
 
 ```sql
 -- Create index
@@ -692,7 +692,7 @@ ALTER TABLE table_name DROP INDEX index_name;
 ANALYZE TABLE table_name;
 ```
 
-## Views
+## 👁️ Views
 
 ```sql
 -- Create view
@@ -717,7 +717,7 @@ SHOW FULL TABLES WHERE Table_type = 'VIEW';
 DROP VIEW view_name;
 ```
 
-## Stored Procedures & Functions
+## ⚙️ Stored Procedures & Functions
 
 ```sql
 -- Create stored procedure
@@ -749,7 +749,7 @@ DROP PROCEDURE procedure_name;
 DROP FUNCTION function_name;
 ```
 
-## Transactions
+## 🔄 Transactions
 
 ```sql
 -- Start transaction
@@ -767,7 +767,7 @@ SAVEPOINT savepoint_name;
 ROLLBACK TO savepoint_name;
 ```
 
-## User Management
+## 👤User Management
 
 ```sql
 -- Create user
@@ -794,7 +794,7 @@ DROP USER 'username'@'localhost';
 ALTER USER 'username'@'localhost' IDENTIFIED BY 'new_password';
 ```
 
-## Backup & Restore
+## 💼 Backup & Restore
 
 ```bash
 # Export database
@@ -813,7 +813,7 @@ mysql -u username -p < all_databases.sql
 gunzip < backup.sql.gz | mysql -u username -p database_name
 ```
 
-## System Information
+## ℹ️ System Information
 
 ```sql
 -- Show MySQL version
@@ -842,7 +842,7 @@ FROM information_schema.tables
 GROUP BY table_schema;
 ```
 
-## Common WHERE Clauses
+## 🔎 WHERE Clauses
 
 ```sql
 -- Comparison operators
@@ -879,7 +879,7 @@ WHERE YEAR(date_column) = 2024
 WHERE date_column BETWEEN '2024-01-01' AND '2024-12-31'
 ```
 
-## JSON Functions (MySQL 5.7+)
+## 📋 JSON Functions (MySQL 5.7+)
 
 ```sql
 -- JSON creation
@@ -906,7 +906,7 @@ FROM products
 GROUP BY category;
 ```
 
-## Analytics Use Case Examples
+## 🎯 Analytics Use Case Examples
 
 ```sql
 -- Customer RFM Analysis (Recency, Frequency, Monetary)
